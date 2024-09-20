@@ -1,0 +1,7 @@
+{
+  "name": "article_singer",
+  "description": "Example host for native messaging",
+  "path": "/home/keenan/Dev/articlesong/app/article_singer.py",
+  "type": "stdio",
+  "allowed_extensions": [ "article_singer@example.org" ]
+}

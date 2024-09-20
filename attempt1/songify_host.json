@@ -1,0 +1,7 @@
+{
+  "name": "songify",
+  "description": "Native messaging host for Songify.",
+  "path": "/home/keenan/Dev/articlesong/songify.py",
+  "type": "stdio",
+  "allowed_extensions": ["songify@mechanisticmind.com"]
+}
