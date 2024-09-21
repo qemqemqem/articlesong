@@ -23,6 +23,13 @@
     "default_icon": "icons/songify.png"
   },
   
-  "permissions": ["nativeMessaging"]
+  "permissions": ["nativeMessaging"],
+
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["content_script.js"]
+    }
+  ]
 
 }
