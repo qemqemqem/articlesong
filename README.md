@@ -1,4 +1,6 @@
-# articlesong
+# Article Song
+
+A project to create a browser plugin that will take the text of your current page and send it to an AI music generation service, to create a song based on the text of the article.
 
 # Notes
 
