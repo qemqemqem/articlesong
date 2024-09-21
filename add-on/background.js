@@ -7,7 +7,10 @@ let port = browser.runtime.connectNative("article_singer");
 Listen for messages from the app.
 */
 port.onMessage.addListener((response) => {
-  console.log("Received: " + response);
+  console.log("Received: ", response);
+  if (response.audio_data) {
+    playAudioFromBase64(response.audio_data);
+  }
 });
 
 /*
@@ -19,6 +22,14 @@ async function getCurrentTabText() {
     return await browser.tabs.sendMessage(tabs[0].id, {action: "getText"});
   }
   return null;
+}
+
+/*
+Function to play audio from base64 data
+*/
+function playAudioFromBase64(base64AudioData) {
+  const audio = new Audio(`data:audio/wav;base64,${base64AudioData}`);
+  audio.play().catch(e => console.error("Error playing audio:", e));
 }
 
 /*

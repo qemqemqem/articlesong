@@ -1,5 +1,4 @@
 {
-
   "description": "Sing your articles!",
   "manifest_version": 2,
   "name": "Turn articles into songs!",
@@ -22,8 +21,12 @@
   "browser_action": {
     "default_icon": "icons/songify.png"
   },
-  
-  "permissions": ["nativeMessaging"],
+
+  "permissions": [
+    "nativeMessaging",
+    "activeTab",
+    "file:///*"
+  ],
 
   "content_scripts": [
     {
@@ -31,5 +34,4 @@
       "js": ["content_script.js"]
     }
   ]
-
 }
