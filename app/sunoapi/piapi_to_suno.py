@@ -94,8 +94,10 @@ async def submit_request(session: aiohttp.ClientSession, prompt: Optional[str], 
 
     if prompt:
         data["input"]["gpt_description_prompt"] = prompt
+        data["custom_mode"] = False
     elif lyrics:
         data["input"]["prompt"] = lyrics
+        data["custom_mode"] = True
 
     # raise Exception(f"{data}")
     print(f"Data: {data}")
