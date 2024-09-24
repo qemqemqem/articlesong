@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-
+import asyncio
 import sys
 import json
 import struct
@@ -8,6 +8,7 @@ import wave
 import io
 import base64
 
+from sunoapi.piapi_to_suno import generate_audio
 
 def create_sine_wave(frequency, duration, sample_rate=44100):
     t = np.linspace(0, duration, int(sample_rate * duration), False)
@@ -15,27 +16,11 @@ def create_sine_wave(frequency, duration, sample_rate=44100):
 
 
 def create_audio_data(text):
-    # Create a simple 1-second sine wave
-    frequency = 440  # A4 note
-    duration = 1  # 1 second
-    audio = create_sine_wave(frequency, duration)
-
-    # Normalize the audio
-    audio = audio * 32767 / np.max(np.abs(audio))
-    audio = audio.astype(np.int16)
-
-    # Write the audio to a bytes buffer
-    buffer = io.BytesIO()
-    with wave.open(buffer, 'wb') as wf:
-        wf.setnchannels(1)
-        wf.setsampwidth(2)
-        wf.setframerate(44100)
-        wf.writeframes(audio.tobytes())
-
-    # Encode the audio data as base64
-    audio_base64 = base64.b64encode(buffer.getvalue()).decode('utf-8')
-
-    return audio_base64
+    # return "https://audiopipe.suno.ai/?item_id=3330f570-5201-4095-b074-e7d1cb82ec27"
+    # return "https://download.samplelib.com/mp3/sample-6s.mp3"
+    song_data = asyncio.run(generate_audio(text))
+    print(f"Song data: {song_data}")
+    return song_data
 
 
 def getMessage():
@@ -60,14 +45,24 @@ def sendMessage(encodedMessage):
 
 
 def process_text(text):
-    audio_data = create_audio_data(text)
-    return {"message": "Audio data created", "audio_data": audio_data}
+    audio_url = create_audio_data(text)
+    return {"message": "Audio data created", "audio_url": audio_url}
 
 
 while True:
     receivedMessage = getMessage()
     if isinstance(receivedMessage, dict) and receivedMessage.get('action') == 'process_text':
-        result = process_text(receivedMessage.get('text', ''))
+        the_text = receivedMessage.get('text', '')
+        # Check if the_text is dict-like, if it can be parsed as a dict
+        try:
+            the_text = json.loads(the_text)
+            the_text = the_text.get('text', '')
+        except json.JSONDecodeError:
+            pass
+        except AttributeError:
+            pass
+        the_text = the_text.strip()
+        result = process_text(the_text)
         sendMessage(encodeMessage(result))
     else:
         sendMessage(encodeMessage({"message": "Unknown command"}))

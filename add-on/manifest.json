@@ -25,6 +25,7 @@
   "permissions": [
     "nativeMessaging",
     "activeTab",
+    "downloads",
     "file:///*"
   ],
 
