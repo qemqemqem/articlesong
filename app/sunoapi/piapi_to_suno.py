@@ -36,18 +36,18 @@ async def generate_audio(prompt: Optional[str] = None, lyrics: Optional[str] = N
     if not PIAPI_KEY:
         raise ValueError("PIAPI_KEY environment variable is not set")
 
-    if len(prompt) > 300:
+    if prompt and len(prompt) > 300:
         lyrics = prompt
         prompt = None
 
-    if len(lyrics) > 10000:
-        lyrics = lyrics[:10000]
+    if lyrics and len(lyrics) > 3_000:
+        lyrics = lyrics[:3_000]
 
     if not title or len(title) == 0:
         if prompt:
-            title = prompt[:50]
+            title = prompt[:20]
         elif lyrics:
-            title = lyrics[:50]
+            title = lyrics[:20]
 
     if prompt is None and lyrics is None:
         raise ValueError("Either 'prompt' or 'lyrics' must be provided")
