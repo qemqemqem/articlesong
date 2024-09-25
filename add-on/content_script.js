@@ -2,24 +2,33 @@
 
 // Function to play audio by injecting an <audio> element
 function playAudio(url) {
-  // Create a new audio element
-  const audio = document.createElement('audio');
-  audio.src = url;
-  audio.controls = true; // Adds controls to play/pause
-  audio.autoplay = true; // Automatically plays the audio
+  // Check if an audio element already exists
+  let existingAudio = document.querySelector('audio');
+  
+  if (existingAudio) {
+    // If it exists, update its source and play
+    existingAudio.src = url;
+    existingAudio.play();
+  } else {
+    // If it doesn't exist, create a new audio element
+    const audio = document.createElement('audio');
+    audio.src = url;
+    audio.controls = true; // Adds controls to play/pause
+    audio.autoplay = true; // Automatically plays the audio
 
-  // Insert the audio element at the top of the webpage
-  document.body.insertBefore(audio, document.body.firstChild);
+    // Insert the audio element at the top of the webpage
+    document.body.insertBefore(audio, document.body.firstChild);
 
-  // Optionally, add an event listener to track when the audio starts playing
-  audio.addEventListener('play', function() {
-    console.log('Audio is playing');
-  });
+    // Optionally, add an event listener to track when the audio starts playing
+    audio.addEventListener('play', function() {
+      console.log('Audio is playing');
+    });
 
-  // Error handling in case of CORS issues
-  audio.addEventListener('error', function(e) {
-    console.error('Failed to load audio:', e);
-  });
+    // Error handling in case of CORS issues
+    audio.addEventListener('error', function(e) {
+      console.error('Failed to load audio:', e);
+    });
+  }
 }
 
 // Function to get text content of the page using Readability

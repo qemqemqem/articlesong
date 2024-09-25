@@ -176,6 +176,11 @@ async function getCurrentTabContent() {
 Function to forward the audio URL to the content script for playback
 */
 async function forwardAudioUrlToContentScript(audioUrl) {
+  if (currentSong.url === audioUrl && currentSong.state === "playing") {
+    console.log('Audio already playing, skipping...');
+    return;
+  }
+
   try {
     let tabs = await browser.tabs.query({active: true, currentWindow: true});
     if (tabs.length > 0) {
@@ -186,6 +191,7 @@ async function forwardAudioUrlToContentScript(audioUrl) {
         await browser.tabs.sendMessage(tabs[0].id, {action: "playAudio", url: audioUrl});
         stopTimer(); // Stop the timer when we start playing the audio
         currentSong.state = "playing"; // Update the state to playing
+        currentSong.url = audioUrl; // Update the current song URL
         updateBrowserActionTitle(); // Update the title to reflect the new state
       } else {
         console.log('Content script not ready, waiting and retrying...');
