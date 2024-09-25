@@ -73,6 +73,7 @@ while True:
     receivedMessage = getMessage()
     if isinstance(receivedMessage, dict) and receivedMessage.get('action') == 'process_text':
         the_text = receivedMessage.get('text', '')
+        the_style = receivedMessage.get('style', '')
         # Check if the_text is dict-like, if it can be parsed as a dict
         try:
             the_text = json.loads(the_text)
