@@ -26,7 +26,19 @@ function playAudio(url) {
 function getText() {
   console.log("Received request to get text content of the page");
   const documentClone = document.cloneNode(true);
-  const reader = new Readability(documentClone);
+  
+  // Remove tables and info boxes before parsing
+  const tables = documentClone.getElementsByTagName('table');
+  const infoBoxes = documentClone.querySelectorAll('.infobox, .info-box, .sidebar');
+  
+  [...tables, ...infoBoxes].forEach(el => el.remove());
+
+  const reader = new Readability(documentClone, {
+    classesToPreserve: [],
+    removeNodes: ['aside', 'figure', 'figcaption'],
+    disableJSONLD: true
+  });
+  
   const article = reader.parse();
 
   if (article && article.textContent) {
