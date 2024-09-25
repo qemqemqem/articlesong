@@ -163,3 +163,4 @@ cython_debug/
 
 # Secrets
 app/sunoapi/.env
+.aider*

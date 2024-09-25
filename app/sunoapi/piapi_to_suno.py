@@ -20,8 +20,7 @@ assert PIAPI_KEY, "You must set the PIAPI key. See README or contact the author.
 assert(len(PIAPI_KEY) > 5), "PIAPI key does not seem to be valid!"
 
 
-async def generate_audio(prompt: Optional[str] = None, lyrics: Optional[str] = None, title: str = "", tags: str = "spoken word",
-                         retry_interval: int = 2, max_retries: int = 150) -> str:
+async def generate_audio(prompt: Optional[str] = None, lyrics: Optional[str] = None, title: str = "", tags: str = "spoken word", retry_interval: int = 2, max_retries: int = 150) -> str:
     """
     Generate audio from a given prompt or lyrics using the Suno API.
 

@@ -53,7 +53,7 @@ browser.browserAction.onClicked.addListener(async () => {
     function sizeInBytes(str) {
         return new Blob([str]).size;
     }
-    console.log("Content size (bytes):", sizeInBytes(content));
+//    console.log("Content size (bytes):", sizeInBytes(content));
     const payload = {action: "process_text", text: JSON.stringify(content)};
 //    console.log("Sending payload to app:", payload);
 //    console.log("It is this big:", sizeInBytes(payload));
