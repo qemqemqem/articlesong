@@ -12,23 +12,20 @@ import traceback
 from sunoapi.piapi_to_suno import generate_audio
 from llms.gpt import prompt_completion_chat, prompt_completion_json
 
-def create_sine_wave(frequency, duration, sample_rate=44100):
-    t = np.linspace(0, duration, int(sample_rate * duration), False)
-    return np.sin(2 * np.pi * frequency * t)
 
 def create_audio_data(text, style):
     try:
         # Generate lyrics using GPT
-        lyrics_prompt = f"Write song lyrics based on the following text in the style of a {style} song. Try to use as much of the content as possible in your song:\n\n{text}\n\nWrite the lyrics without any annotations like 'Chorus' or 'Verse 1'.\n\n"
+        lyrics_prompt = f"Write song lyrics based on the following text. Try to use as much of the content as possible in your song:\n\n{text}\n\nWrite the lyrics without any annotations like 'Chorus' or 'Verse 1'.\n\n"
         
         if style == "spoken":
             lyrics_prompt += "Focus on a spoken word style, with a rhythmic flow and emphasis on the words rather than melody."
         elif style == "musical":
             lyrics_prompt += "Create a traditional song structure with verses and a chorus, focusing on melody and rhyme."
         elif style == "meme":
-            lyrics_prompt += "Make a silly meme song. Make the lyrics catchy, humorous, and internet culture-friendly. Include references or phrases that could go viral. Don't be afraid to use juvenile humor, absurdity, or explicit jokes. Make it fun and funny!"
-        else:
-            lyrics_prompt += "Capture all the key facts, ideas, emotions, and passages from the text. If there is a line from the article that is really important, try to include it in the lyrics. Try to be educational but also capture the vibes of the piece."
+            lyrics_prompt += "Make a silly meme song. Make the lyrics catchy, humorous, and internet culture-friendly. Include references or phrases that could go viral. Don't be afraid to use juvenile humor, absurdity, funny rhymes, or explicit jokes. Do not be self-referential about the concept of a meme song, instead focusing on the article and its content. Make it fun and funny!"
+
+        lyrics_prompt += "\n\nCapture all the key facts, ideas, emotions, and passages from the text. If there is a line from the article that is really important, try to include it in the lyrics. Try to be educational but also capture the vibes of the piece."
 
         lyrics = prompt_completion_chat(lyrics_prompt, max_tokens=700)
         print(f"WARNING: Generated lyrics: {lyrics[:50]}...")  # Print first 50 characters
