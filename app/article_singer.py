@@ -26,36 +26,34 @@ def create_audio_data(text, style):
             lyrics_prompt += "Make a silly meme song. Make the lyrics catchy, humorous, and internet culture-friendly. Include references or phrases that could go viral. Don't be afraid to use juvenile humor, absurdity, funny rhymes, or explicit jokes. Do not be self-referential about the concept of a meme song, instead focusing on the article and its content. Make it fun and funny!"
         elif style == "cute":
             lyrics_prompt += "Write a cute, light-hearted song. Focus on themes of love, friendship, or happiness. Use a positive tone that you think will make the listener smile. Make it catchy and easy to sing along to."
-        elif style == "straight":
-            lyrics = text  # Use the article text directly as lyrics
         else:
             if style not in ["meme"]:
                 lyrics_prompt += "\n\nCapture all the key facts, ideas, emotions, and passages from the text. If there is a line from the article that is really important, try to include it in the lyrics. Try to be educational but also capture the vibes of the piece."
 
+        if style == "straight":
+            lyrics = text  # Use the article text directly as lyrics
+        else:
             lyrics = prompt_completion_chat(lyrics_prompt, max_tokens=700)
 
         print(f"WARNING: Generated lyrics: {lyrics[:50]}...")  # Print first 50 characters
 
         # Generate song style using GPT
-        if style == "straight":
-            style_tags = "spoken word, narration, documentary style"
-        else:
-            style_prompt = f"Based on the following {style} song lyrics, suggest a short description of a musical style that would be good to sing them in. Limit your response to 120 characters or less. A good response would be a short list of tags such as musical styles:\n\n{lyrics}"
-            if style == "meme":
-                style_prompt += "\n\nI want this to be a humorous meme song, so consider choosing a wacky or silly style. However, if the lyrics are already humorous, you can choose a more serious style to contrast with them."
-            elif style == "spoken":
-                style_prompt += "\n\nI want this to be a spoken word piece, so choose a style description that is more focused on the rhythm and delivery of the words than on melody, such as \"spoken word\", \"rap\", \"poetry slam\", or \"folk storytelling\"."
-            style_tags = prompt_completion_chat(style_prompt, max_tokens=50)
+        style_prompt = f"Based on the following {style} song lyrics, suggest a short description of a musical style that would be good to sing them in. Limit your response to 120 characters or less. A good response would be a short list of tags such as musical styles:\n\n{lyrics}"
+        if style == "meme":
+            style_prompt += "\n\nI want this to be a humorous meme song, so consider choosing a wacky or silly style. However, if the lyrics are already humorous, you can choose a more serious style to contrast with them."
+        elif style == "spoken":
+            style_prompt += "\n\nI want this to be a spoken word piece, so choose a style description that is more focused on the rhythm and delivery of the words than on melody, such as \"spoken word\", \"rap\", \"poetry slam\", or \"folk storytelling\"."
+        style_tags = prompt_completion_chat(style_prompt, max_tokens=50)
         print(f"WARNING: Generated style tags: {style_tags}")
 
         # Generate audio using Suno API
-        song_data = asyncio.run(generate_audio(lyrics=lyrics, tags=style_tags))
+        song_url = asyncio.run(generate_audio(lyrics=lyrics, tags=style_tags))
         print(f"WARNING: Song data generated successfully")
-        return song_data
+        return song_url, style_tags, lyrics
     except Exception as e:
         print(f"ERROR: An error occurred in create_audio_data: {str(e)}")
         print(f"ERROR: {traceback.format_exc()}")
-        return None
+        return None, None, None
 
 
 def getMessage():
@@ -80,10 +78,10 @@ def sendMessage(encodedMessage):
 
 
 def process_text(text, style):
-    audio_url = create_audio_data(text, style)
+    audio_url, chosen_style, lyrics = create_audio_data(text, style)
     if audio_url:
         print(f"WARNING: Audio URL created: {audio_url[:50]}...")  # Print first 50 characters
-        return {"message": "Audio data created", "audio_url": audio_url, "song_info": {"style": style}}
+        return {"message": "Audio data created", "audio_url": audio_url, "song_info": {"style": chosen_style, "url": audio_url, "lyrics": lyrics}}
     else:
         print("ERROR: Failed to create audio data")
         return {"message": "Failed to create audio data", "error": "Audio generation failed"}

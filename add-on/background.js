@@ -8,7 +8,8 @@ let currentSong = {
   title: "",
   style: "",
   state: "idle", // Can be "idle", "writing", or "playing"
-  url: ""
+  url: "",
+  lyrics: ""
 };
 
 // Track start time and elapsed time
@@ -51,7 +52,7 @@ browser.menus.create({
 
 browser.menus.create({
   id: "straight-lyrics",
-  title: "Straight Lyrics",
+  title: "Use Page Text as Lyrics",
   contexts: ["browser_action"]
 });
 
@@ -123,7 +124,9 @@ function updateBrowserActionTitle() {
                  `Have waited ${formatTime(elapsedTime)} out of expected ${EXPECTED_DURATION}s for response`;
     } else if (currentSong.state === "playing") {
       my_title = `Currently playing: "${currentSong.title}"\n` +
-                 `Style: ${currentSong.style || 'Unknown'}`;
+                 `Style: ${currentSong.style || 'Unknown'}\n` +
+                 `Audio URL: ${currentSong.url}\n` +
+                 `\nLyrics: \n${currentSong.lyrics}`;
     }
   }
   browser.browserAction.setTitle({ title: my_title });
