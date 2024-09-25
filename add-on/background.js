@@ -49,6 +49,12 @@ browser.menus.create({
   contexts: ["browser_action"]
 });
 
+browser.menus.create({
+  id: "straight-lyrics",
+  title: "Straight Lyrics",
+  contexts: ["browser_action"]
+});
+
 // Listen for context menu clicks
 browser.menus.onClicked.addListener((info, tab) => {
   getCurrentTabContent().then(content => {
@@ -66,6 +72,9 @@ browser.menus.onClicked.addListener((info, tab) => {
           break;
         case "cute-song":
           songType = "cute";
+          break;
+        case "straight-lyrics":
+          songType = "straight";
           break;
       }
       requestingTabId = tab.id; // Store the tab ID

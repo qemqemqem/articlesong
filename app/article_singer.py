@@ -26,20 +26,26 @@ def create_audio_data(text, style):
             lyrics_prompt += "Make a silly meme song. Make the lyrics catchy, humorous, and internet culture-friendly. Include references or phrases that could go viral. Don't be afraid to use juvenile humor, absurdity, funny rhymes, or explicit jokes. Do not be self-referential about the concept of a meme song, instead focusing on the article and its content. Make it fun and funny!"
         elif style == "cute":
             lyrics_prompt += "Write a cute, light-hearted song. Focus on themes of love, friendship, or happiness. Use a positive tone that you think will make the listener smile. Make it catchy and easy to sing along to."
+        elif style == "straight":
+            lyrics = text  # Use the article text directly as lyrics
+        else:
+            if style not in ["meme"]:
+                lyrics_prompt += "\n\nCapture all the key facts, ideas, emotions, and passages from the text. If there is a line from the article that is really important, try to include it in the lyrics. Try to be educational but also capture the vibes of the piece."
 
-        if style not in ["meme"]:
-            lyrics_prompt += "\n\nCapture all the key facts, ideas, emotions, and passages from the text. If there is a line from the article that is really important, try to include it in the lyrics. Try to be educational but also capture the vibes of the piece."
+            lyrics = prompt_completion_chat(lyrics_prompt, max_tokens=700)
 
-        lyrics = prompt_completion_chat(lyrics_prompt, max_tokens=700)
         print(f"WARNING: Generated lyrics: {lyrics[:50]}...")  # Print first 50 characters
 
         # Generate song style using GPT
-        style_prompt = f"Based on the following {style} song lyrics, suggest a short description of a musical style that would be good to sing them in. Limit your response to 120 characters or less. A good response would be a short list of tags such as musical styles:\n\n{lyrics}"
-        if style == "meme":
-            style_prompt += "\n\nI want this to be a humorous meme song, so consider choosing a wacky or silly style. However, if the lyrics are already humorous, you can choose a more serious style to contrast with them."
-        elif style == "spoken":
-            style_prompt += "\n\nI want this to be a spoken word piece, so choose a style description that is more focused on the rhythm and delivery of the words than on melody, such as \"spoken word\", \"rap\", \"poetry slam\", or \"folk storytelling\"."
-        style_tags = prompt_completion_chat(style_prompt, max_tokens=50)
+        if style == "straight":
+            style_tags = "spoken word, narration, documentary style"
+        else:
+            style_prompt = f"Based on the following {style} song lyrics, suggest a short description of a musical style that would be good to sing them in. Limit your response to 120 characters or less. A good response would be a short list of tags such as musical styles:\n\n{lyrics}"
+            if style == "meme":
+                style_prompt += "\n\nI want this to be a humorous meme song, so consider choosing a wacky or silly style. However, if the lyrics are already humorous, you can choose a more serious style to contrast with them."
+            elif style == "spoken":
+                style_prompt += "\n\nI want this to be a spoken word piece, so choose a style description that is more focused on the rhythm and delivery of the words than on melody, such as \"spoken word\", \"rap\", \"poetry slam\", or \"folk storytelling\"."
+            style_tags = prompt_completion_chat(style_prompt, max_tokens=50)
         print(f"WARNING: Generated style tags: {style_tags}")
 
         # Generate audio using Suno API
