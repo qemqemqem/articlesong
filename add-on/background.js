@@ -97,7 +97,7 @@ function updateBrowserActionTitle() {
             `Elapsed time: ${formatTime(elapsedTime)}\n` +
             `Current time: ${currentTime}`;
   } else {
-    my_title = "Turn articles into songs! Current song name unknown.";
+    my_title = "Turn articles into songs!";
   }
   browser.browserAction.setTitle({ title: my_title });
 }
@@ -185,7 +185,6 @@ Function to send content to the app
 async function sendContentToApp(content, songType = "default") {
   console.log(`Sending main content to Python app for ${songType} song`);
   
-  // Get the current tab
   let tabs = await browser.tabs.query({active: true, currentWindow: true});
   if (tabs.length > 0) {
     // Set the currentSong title to the tab's title
