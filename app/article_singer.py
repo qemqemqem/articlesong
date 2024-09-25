@@ -25,7 +25,7 @@ def create_audio_data(text):
     style = prompt_completion_chat(style_prompt, max_tokens=50)
 
     # Generate audio using Suno API
-    song_data = asyncio.run(generate_audio(lyrics, style))
+    song_data = asyncio.run(generate_audio(lyrics=lyrics, tags=style))
     print(f"Song data: {song_data}")
     return song_data
 

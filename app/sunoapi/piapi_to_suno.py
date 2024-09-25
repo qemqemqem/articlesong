@@ -44,9 +44,12 @@ async def generate_audio(prompt: Optional[str] = None, lyrics: Optional[str] = N
 
     if not title or len(title) == 0:
         if prompt:
-            title = prompt[:20]
+            title = prompt[:80]
         elif lyrics:
-            title = lyrics[:20]
+            title = lyrics[:80]
+
+    if tags and len(tags) > 120:
+        tags = tags[:120]
 
     if prompt is None and lyrics is None:
         raise ValueError("Either 'prompt' or 'lyrics' must be provided")
