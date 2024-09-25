@@ -8,8 +8,8 @@ function playAudio(url) {
   audio.controls = true; // Adds controls to play/pause
   audio.autoplay = true; // Automatically plays the audio
 
-  // Append the audio element to the body of the webpage
-  document.body.appendChild(audio);
+  // Insert the audio element at the top of the webpage
+  document.body.insertBefore(audio, document.body.firstChild);
 
   // Optionally, add an event listener to track when the audio starts playing
   audio.addEventListener('play', function() {
