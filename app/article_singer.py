@@ -10,7 +10,7 @@ import base64
 import traceback
 
 from sunoapi.piapi_to_suno import generate_audio
-from app.llms.gpt import prompt_completion_chat, prompt_completion_json
+from llms.gpt import prompt_completion_chat, prompt_completion_json
 
 def create_sine_wave(frequency, duration, sample_rate=44100):
     t = np.linspace(0, duration, int(sample_rate * duration), False)
