@@ -3,10 +3,11 @@ On startup, connect to the "article_singer" app.
 */
 let port = browser.runtime.connectNative("article_singer");
 
-// Store current song information
+// Store current song information and state
 let currentSong = {
   title: "",
   style: "",
+  state: "idle", // Can be "idle", "writing", or "playing"
 };
 
 // Track start time and elapsed time
@@ -15,6 +16,9 @@ let elapsedTimeInterval = null;
 
 // Set initial browser action title
 updateBrowserActionTitle();
+
+// Expected duration for song writing (in seconds)
+const EXPECTED_DURATION = 60;
 
 browser.menus.create({
   id: "musical-song",
@@ -92,12 +96,16 @@ function updateBrowserActionTitle() {
   if (currentSong.title) {
     let elapsedTime = startTime ? Math.floor((Date.now() - startTime) / 1000) : 0;
     let currentTime = new Date().toLocaleTimeString();
-    my_title = `Now playing: ${currentSong.title}\n` +
-            `Style: ${currentSong.style || 'Unknown'}\n` +
-            `Elapsed time: ${formatTime(elapsedTime)}\n` +
-            `Current time: ${currentTime}`;
-  } else {
-    my_title = "Turn articles into songs!";
+    
+    if (currentSong.state === "writing") {
+      my_title = `Writing song about "${currentSong.title}"\n` +
+                 `Have waited ${formatTime(elapsedTime)} out of expected ${EXPECTED_DURATION}s for response\n` +
+                 `Current time: ${currentTime}`;
+    } else if (currentSong.state === "playing") {
+      my_title = `Currently playing: "${currentSong.title}"\n` +
+                 `Style: ${currentSong.style || 'Unknown'}\n` +
+                 `Current time: ${currentTime}`;
+    }
   }
   browser.browserAction.setTitle({ title: my_title });
 }
@@ -115,6 +123,7 @@ function startTimer() {
     clearInterval(elapsedTimeInterval);
   }
   startTime = Date.now();
+  currentSong.state = "writing";
   elapsedTimeInterval = setInterval(() => {
     updateBrowserActionTitle();
     updateBadge();
@@ -123,13 +132,14 @@ function startTimer() {
 
 // Function to stop the timer
 function stopTimer() {
-    if (elapsedTimeInterval) {
-        clearInterval(elapsedTimeInterval);
-        elapsedTimeInterval = null;
-        startTime = null;
-        updateBrowserActionTitle();
-        updateBadge();
-    }
+  if (elapsedTimeInterval) {
+    clearInterval(elapsedTimeInterval);
+    elapsedTimeInterval = null;
+    startTime = null;
+    currentSong.state = "playing";
+    updateBrowserActionTitle();
+    updateBadge();
+  }
 }
 
 // Function to update the badge
@@ -166,6 +176,9 @@ async function forwardAudioUrlToContentScript(audioUrl) {
       const isContentScriptReady = await browser.tabs.sendMessage(tabs[0].id, {action: "ping"}).catch(() => false);
       if (isContentScriptReady) {
         await browser.tabs.sendMessage(tabs[0].id, {action: "playAudio", url: audioUrl});
+        stopTimer(); // Stop the timer when we start playing the audio
+        currentSong.state = "playing"; // Update the state to playing
+        updateBrowserActionTitle(); // Update the title to reflect the new state
       } else {
         console.log('Content script not ready, waiting and retrying...');
         // Wait for a short time and retry
