@@ -8,6 +8,7 @@ let currentSong = {
   title: "",
   style: "",
   state: "idle", // Can be "idle", "writing", or "playing"
+  url: ""
 };
 
 // Track start time and elapsed time
@@ -80,7 +81,16 @@ port.onMessage.addListener((response) => {
 //    startTimer(); // Start the timer when we receive the audio URL
   }
   if (response.song_info) {
+    console.log("Updating song info", response.song_info);
     updateSongInfo(response.song_info);
+  }
+  // Store url in currentSong object
+  if (response.url) {
+    currentSong.url = response.url;
+  }
+  if (response.song_info && response.song_info.style) {
+    // Store style in currentSong object
+    currentSong.style = response.song_info.style;
   }
 });
 
@@ -99,12 +109,10 @@ function updateBrowserActionTitle() {
     
     if (currentSong.state === "writing") {
       my_title = `Writing song about "${currentSong.title}"\n` +
-                 `Have waited ${formatTime(elapsedTime)} out of expected ${EXPECTED_DURATION}s for response\n` +
-                 `Current time: ${currentTime}`;
+                 `Have waited ${formatTime(elapsedTime)} out of expected ${EXPECTED_DURATION}s for response`;
     } else if (currentSong.state === "playing") {
       my_title = `Currently playing: "${currentSong.title}"\n` +
-                 `Style: ${currentSong.style || 'Unknown'}\n` +
-                 `Current time: ${currentTime}`;
+                 `Style: ${currentSong.style || 'Unknown'}`;
     }
   }
   browser.browserAction.setTitle({ title: my_title });
