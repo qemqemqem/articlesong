@@ -51,6 +51,12 @@ browser.menus.create({
 });
 
 browser.menus.create({
+  id: "informative-song",
+  title: "Informative Song",
+  contexts: ["browser_action"]
+});
+
+browser.menus.create({
   id: "straight-lyrics",
   title: "Use Page Text as Lyrics",
   contexts: ["browser_action"]
@@ -73,6 +79,9 @@ browser.menus.onClicked.addListener((info, tab) => {
           break;
         case "cute-song":
           songType = "cute";
+          break;
+        case "informative-song":
+          songType = "informative";
           break;
         case "straight-lyrics":
           songType = "straight";
