@@ -3,6 +3,13 @@ On startup, connect to the "article_singer" app.
 */
 let port = browser.runtime.connectNative("article_singer");
 
+// Store current song information
+let currentSong = {
+  title: "",
+  artist: "",
+  duration: ""
+};
+
 /*
 Listen for messages from the app.
 */
@@ -11,7 +18,22 @@ port.onMessage.addListener((response) => {
   if (response.audio_url) {
     forwardAudioUrlToContentScript(response.audio_url);
   }
+  if (response.song_info) {
+    updateSongInfo(response.song_info);
+  }
 });
+
+// Function to update song information
+function updateSongInfo(songInfo) {
+  currentSong = songInfo;
+  updateBrowserActionTitle();
+}
+
+// Function to update browser action title
+function updateBrowserActionTitle() {
+  const title = `Now playing: ${currentSong.title} by ${currentSong.artist} (${currentSong.duration})`;
+  browser.browserAction.setTitle({ title });
+}
 
 /*
 Function to get the main content of the current tab

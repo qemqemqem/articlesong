@@ -34,20 +34,31 @@ def process_text(text, api_key):
     try:
         with open('output_audio.mp3', 'rb') as audio_file:
             audio_data = base64.b64encode(audio_file.read()).decode('utf-8')
-        return audio_data
+        
+        # Simulate getting song information
+        song_info = {
+            "title": "Generated Song",
+            "artist": "AI Singer",
+            "duration": "3:30"
+        }
+        
+        return audio_data, song_info
     except FileNotFoundError:
-        return None
+        return None, None
 
 def main():
     while True:
         message = get_message()
         text = message.get('text', '')
         api_key = message.get('apiKey', '')
-        audio_data = process_text(text, api_key)
-        if audio_data:
-            send_message({'audioData': audio_data})
+        audio_data, song_info = process_text(text, api_key)
+        if audio_data and song_info:
+            send_message({
+                'audioData': audio_data,
+                'song_info': song_info
+            })
         else:
-            send_message({'error': 'Audio file not found.'})
+            send_message({'error': 'Audio file not found or song info unavailable.'})
 
 if __name__ == '__main__':
     main()
