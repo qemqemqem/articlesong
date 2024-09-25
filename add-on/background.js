@@ -6,6 +6,7 @@ let port = browser.runtime.connectNative("article_singer");
 // Store current song information
 let currentSong = {
   title: "",
+  style: "",
 };
 
 // Track start time and elapsed time
