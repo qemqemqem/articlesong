@@ -66,6 +66,7 @@ browser.menus.onClicked.addListener((info, tab) => {
           break;
       }
       sendContentToApp(content, songType);
+      startTimer();
     }
   });
 });
