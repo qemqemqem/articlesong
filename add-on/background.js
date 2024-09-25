@@ -13,16 +13,16 @@ let currentSong = {
 // Set initial browser action title
 updateBrowserActionTitle();
 
+browser.menus.create({
+  id: "musical-song",
+  title: "Musical Song (default)",
+  contexts: ["browser_action"]
+});
+
 // Create context menu items
 browser.menus.create({
   id: "spoken-word-song",
   title: "Spoken Word Song",
-  contexts: ["browser_action"]
-});
-
-browser.menus.create({
-  id: "musical-song",
-  title: "Musical Song",
   contexts: ["browser_action"]
 });
 
