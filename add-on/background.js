@@ -180,8 +180,17 @@ async function forwardAudioUrlToContentScript(audioUrl) {
 /*
 Function to send content to the app
 */
-function sendContentToApp(content, songType = "default") {
+async function sendContentToApp(content, songType = "default") {
   console.log(`Sending main content to Python app for ${songType} song`);
+  
+  // Get the current tab
+  let tabs = await browser.tabs.query({active: true, currentWindow: true});
+  if (tabs.length > 0) {
+    // Set the currentSong title to the tab's title
+    currentSong.title = tabs[0].title || "Unknown Title";
+    updateBrowserActionTitle();
+  }
+
   const payload = {
     action: "process_text",
     text: JSON.stringify(content),
