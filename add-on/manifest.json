@@ -26,7 +26,8 @@
     "nativeMessaging",
     "activeTab",
     "downloads",
-    "file:///*"
+    "file:///*",
+    "menus"
   ],
 
   "content_scripts": [

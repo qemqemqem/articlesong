@@ -26,7 +26,7 @@ def create_audio_data(text, style):
         elif style == "musical":
             lyrics_prompt += "Create a traditional song structure with verses and a chorus, focusing on melody and rhyme."
         elif style == "meme":
-            lyrics_prompt += "Make the lyrics catchy, humorous, and internet culture-friendly. Include references or phrases that could go viral."
+            lyrics_prompt += "Make a silly meme song. Make the lyrics catchy, humorous, and internet culture-friendly. Include references or phrases that could go viral. Don't be afraid to use juvenile humor or absurdity. Make it fun!"
         else:
             lyrics_prompt += "Capture all the key facts, ideas, emotions, and passages from the text. If there is a line from the article that is really important, try to include it in the lyrics. Try to be educational but also capture the vibes of the piece."
 
@@ -35,6 +35,8 @@ def create_audio_data(text, style):
 
         # Generate song style using GPT
         style_prompt = f"Based on the following {style} song lyrics, suggest a short description of a musical style that would be good to sing them in. Limit your response to 120 characters or less. A good response would be a short list of tags such as musical styles:\n\n{lyrics}"
+        if style == "meme":
+            style_prompt += "\n\nI want this to be a humorous meme song, so consider choosing a wacky or silly style. However, if the lyrics are already humorous, you can choose a more serious style to contrast with them."
         style_tags = prompt_completion_chat(style_prompt, max_tokens=50)
         print(f"WARNING: Generated style tags: {style_tags}")
 

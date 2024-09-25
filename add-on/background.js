@@ -13,6 +13,46 @@ let currentSong = {
 // Set initial browser action title
 updateBrowserActionTitle();
 
+// Create context menu items
+browser.menus.create({
+  id: "spoken-word-song",
+  title: "Spoken Word Song",
+  contexts: ["browser_action"]
+});
+
+browser.menus.create({
+  id: "musical-song",
+  title: "Musical Song",
+  contexts: ["browser_action"]
+});
+
+browser.menus.create({
+  id: "meme-song",
+  title: "Meme Song",
+  contexts: ["browser_action"]
+});
+
+// Listen for context menu clicks
+browser.menus.onClicked.addListener((info, tab) => {
+  getCurrentTabContent().then(content => {
+    if (content) {
+      let songType;
+      switch (info.menuItemId) {
+        case "spoken-word-song":
+          songType = "spoken";
+          break;
+        case "musical-song":
+          songType = "musical";
+          break;
+        case "meme-song":
+          songType = "meme";
+          break;
+      }
+      sendContentToApp(content, songType);
+    }
+  });
+});
+
 /*
 Listen for messages from the app.
 */
@@ -78,22 +118,25 @@ async function forwardAudioUrlToContentScript(audioUrl) {
 }
 
 /*
+Function to send content to the app
+*/
+function sendContentToApp(content, songType = "default") {
+  console.log(`Sending main content to Python app for ${songType} song`);
+  const payload = {
+    action: "process_text",
+    text: JSON.stringify(content),
+    songType: songType
+  };
+  port.postMessage(payload);
+}
+
+/*
 On a click on the browser action, send the current tab's main content to the app.
 */
 browser.browserAction.onClicked.addListener(async () => {
   let content = await getCurrentTabContent();
   if (content) {
-    console.log("Sending main content to Python app");
-//    console.log(content)
-    // Function to calculate size in bytes
-    function sizeInBytes(str) {
-        return new Blob([str]).size;
-    }
-//    console.log("Content size (bytes):", sizeInBytes(content));
-    const payload = {action: "process_text", text: JSON.stringify(content)};
-//    console.log("Sending payload to app:", payload);
-//    console.log("It is this big:", sizeInBytes(payload));
-    port.postMessage(payload);
+    sendContentToApp(content);
   } else {
     console.log("Failed to get main content from current tab");
   }
