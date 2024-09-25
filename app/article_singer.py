@@ -19,12 +19,12 @@ def create_sine_wave(frequency, duration, sample_rate=44100):
 def create_audio_data(text):
     try:
         # Generate lyrics using GPT
-        lyrics_prompt = f"Write song lyrics based on the following text:\n\n{text}\n\nWrite the lyrics without any annotations like 'Chorus' or 'Verse 1'."
-        lyrics = prompt_completion_chat(lyrics_prompt, max_tokens=500)
+        lyrics_prompt = f"Write song lyrics based on the following text. Try to use as much of the content as possible in your song:\n\n{text}\n\nWrite the lyrics without any annotations like 'Chorus' or 'Verse 1'.\n\nCapture all the key facts, ideas, emotions, and passages from the text. If there is a line from the article that is really important, try to include it in the lyrics. Try to be educational but also capture the vibes of the piece."
+        lyrics = prompt_completion_chat(lyrics_prompt, max_tokens=700)
         print(f"WARNING: Generated lyrics: {lyrics[:50]}...")  # Print first 50 characters
 
         # Generate song style using GPT
-        style_prompt = f"Based on the following text, suggest a short description of a musical style that would fit the theme:\n\n{text}"
+        style_prompt = f"Based on the following song lyrics, suggest a short description of a musical style that would be good to sing them in. Limit your response to 120 characters or less. A good response would be a short list of tags such as musical styles:\n\n{lyrics}"
         style = prompt_completion_chat(style_prompt, max_tokens=50)
         print(f"WARNING: Generated style: {style}")
 
