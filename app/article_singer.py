@@ -77,7 +77,7 @@ def process_text(text, style):
     audio_url = create_audio_data(text, style)
     if audio_url:
         print(f"WARNING: Audio URL created: {audio_url[:50]}...")  # Print first 50 characters
-        return {"message": "Audio data created", "audio_url": audio_url}
+        return {"message": "Audio data created", "audio_url": audio_url, "song_info": {"title": text[:120], "style": style}}
     else:
         print("ERROR: Failed to create audio data")
         return {"message": "Failed to create audio data", "error": "Audio generation failed"}

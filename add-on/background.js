@@ -6,8 +6,6 @@ let port = browser.runtime.connectNative("article_singer");
 // Store current song information
 let currentSong = {
   title: "",
-  artist: "",
-  duration: ""
 };
 
 // Track start time and elapsed time
@@ -73,7 +71,8 @@ port.onMessage.addListener((response) => {
   console.log("Received: ", response);
   if (response.audio_url) {
     forwardAudioUrlToContentScript(response.audio_url);
-    startTimer(); // Start the timer when we receive the audio URL
+    stopTimer(); // Stop the timer when we receive the audio URL
+//    startTimer(); // Start the timer when we receive the audio URL
   }
   if (response.song_info) {
     updateSongInfo(response.song_info);
@@ -88,12 +87,17 @@ function updateSongInfo(songInfo) {
 
 // Function to update browser action title
 function updateBrowserActionTitle() {
-  let title = "Turn articles into songs!";
+  let my_title = "Turn articles into songs!";
   if (currentSong.title) {
     let elapsedTime = startTime ? Math.floor((Date.now() - startTime) / 1000) : 0;
-    title = `Now playing: ${currentSong.title} by ${currentSong.artist}\nElapsed time: ${formatTime(elapsedTime)}`;
+    let currentTime = new Date().toLocaleTimeString();
+    my_title = `Now playing: ${currentSong.title} by ${currentSong.artist}\n` +
+            `Elapsed time: ${formatTime(elapsedTime)}\n` +
+            `Current time: ${currentTime}`;
+  } else {
+    my_title = "Turn articles into songs! Current song name unknown.";
   }
-  browser.browserAction.setTitle({ title });
+  browser.browserAction.setTitle({ title: my_title });
 }
 
 // Function to format time in MM:SS format
@@ -113,6 +117,17 @@ function startTimer() {
     updateBrowserActionTitle();
     updateBadge();
   }, 1000);
+}
+
+// Function to stop the timer
+function stopTimer() {
+    if (elapsedTimeInterval) {
+        clearInterval(elapsedTimeInterval);
+        elapsedTimeInterval = null;
+        startTime = null;
+        updateBrowserActionTitle();
+        updateBadge();
+    }
 }
 
 // Function to update the badge
