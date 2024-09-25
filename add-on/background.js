@@ -10,6 +10,10 @@ let currentSong = {
   duration: ""
 };
 
+// Track start time and elapsed time
+let startTime = null;
+let elapsedTimeInterval = null;
+
 // Set initial browser action title
 updateBrowserActionTitle();
 
@@ -32,6 +36,12 @@ browser.menus.create({
   contexts: ["browser_action"]
 });
 
+browser.menus.create({
+  id: "cute-song",
+  title: "Cute Song",
+  contexts: ["browser_action"]
+});
+
 // Listen for context menu clicks
 browser.menus.onClicked.addListener((info, tab) => {
   getCurrentTabContent().then(content => {
@@ -47,6 +57,9 @@ browser.menus.onClicked.addListener((info, tab) => {
         case "meme-song":
           songType = "meme";
           break;
+        case "cute-song":
+          songType = "cute";
+          break;
       }
       sendContentToApp(content, songType);
     }
@@ -60,6 +73,7 @@ port.onMessage.addListener((response) => {
   console.log("Received: ", response);
   if (response.audio_url) {
     forwardAudioUrlToContentScript(response.audio_url);
+    startTimer(); // Start the timer when we receive the audio URL
   }
   if (response.song_info) {
     updateSongInfo(response.song_info);
@@ -76,9 +90,40 @@ function updateSongInfo(songInfo) {
 function updateBrowserActionTitle() {
   let title = "Turn articles into songs!";
   if (currentSong.title) {
-    title = `Now playing: ${currentSong.title} by ${currentSong.artist} (${currentSong.duration})`;
+    let elapsedTime = startTime ? Math.floor((Date.now() - startTime) / 1000) : 0;
+    title = `Now playing: ${currentSong.title} by ${currentSong.artist}\nElapsed time: ${formatTime(elapsedTime)}`;
   }
   browser.browserAction.setTitle({ title });
+}
+
+// Function to format time in MM:SS format
+function formatTime(seconds) {
+  const minutes = Math.floor(seconds / 60);
+  const remainingSeconds = seconds % 60;
+  return `${minutes.toString().padStart(1, '0')}:${remainingSeconds.toString().padStart(2, '0')}`;
+}
+
+// Function to start the timer
+function startTimer() {
+  if (elapsedTimeInterval) {
+    clearInterval(elapsedTimeInterval);
+  }
+  startTime = Date.now();
+  elapsedTimeInterval = setInterval(() => {
+    updateBrowserActionTitle();
+    updateBadge();
+  }, 1000);
+}
+
+// Function to update the badge
+function updateBadge() {
+  if (startTime) {
+    let elapsedTime = Math.floor((Date.now() - startTime) / 1000);
+    browser.browserAction.setBadgeText({ text: formatTime(elapsedTime) });
+    browser.browserAction.setBadgeBackgroundColor({ color: "#4CAF50" });
+  } else {
+    browser.browserAction.setBadgeText({ text: "" });
+  }
 }
 
 /*
@@ -136,7 +181,8 @@ On a click on the browser action, send the current tab's main content to the app
 browser.browserAction.onClicked.addListener(async () => {
   let content = await getCurrentTabContent();
   if (content) {
-    sendContentToApp(content);
+    sendContentToApp(content, "musical"); // Default to musical song type
+    startTimer(); // Start the timer when the button is clicked
   } else {
     console.log("Failed to get main content from current tab");
   }

@@ -24,8 +24,10 @@ def create_audio_data(text, style):
             lyrics_prompt += "Create a traditional song structure with verses and a chorus, focusing on melody and rhyme."
         elif style == "meme":
             lyrics_prompt += "Make a silly meme song. Make the lyrics catchy, humorous, and internet culture-friendly. Include references or phrases that could go viral. Don't be afraid to use juvenile humor, absurdity, funny rhymes, or explicit jokes. Do not be self-referential about the concept of a meme song, instead focusing on the article and its content. Make it fun and funny!"
+        elif style == "cute":
+            lyrics_prompt += "Write a cute, light-hearted song. Focus on themes of love, friendship, or happiness. Use a positive tone that you think will make the listener smile. Make it catchy and easy to sing along to."
 
-        if style != "meme":
+        if style not in ["meme"]:
             lyrics_prompt += "\n\nCapture all the key facts, ideas, emotions, and passages from the text. If there is a line from the article that is really important, try to include it in the lyrics. Try to be educational but also capture the vibes of the piece."
 
         lyrics = prompt_completion_chat(lyrics_prompt, max_tokens=700)
