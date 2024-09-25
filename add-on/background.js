@@ -82,7 +82,7 @@ port.onMessage.addListener((response) => {
 
 // Function to update song information
 function updateSongInfo(songInfo) {
-  currentSong = songInfo;
+  currentSong = {...currentSong, ...songInfo};
   updateBrowserActionTitle();
 }
 
@@ -92,7 +92,8 @@ function updateBrowserActionTitle() {
   if (currentSong.title) {
     let elapsedTime = startTime ? Math.floor((Date.now() - startTime) / 1000) : 0;
     let currentTime = new Date().toLocaleTimeString();
-    my_title = `Now playing: ${currentSong.title} by ${currentSong.artist}\n` +
+    my_title = `Now playing: ${currentSong.title}\n` +
+            `Style: ${currentSong.style || 'Unknown'}\n` +
             `Elapsed time: ${formatTime(elapsedTime)}\n` +
             `Current time: ${currentTime}`;
   } else {
