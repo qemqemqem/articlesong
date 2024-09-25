@@ -56,12 +56,13 @@ browser.runtime.onMessage.addListener((request, sender, sendResponse) => {
     // Handle the playAudio action
     playAudio(request.url);
     sendResponse({ status: "Audio playing" });
-  }
-
-  if (request.action === "getText") {
+  } else if (request.action === "getText") {
     // Handle the getText action
     const text = getText();
     sendResponse({ text: text });
+  } else if (request.action === "ping") {
+    // Respond to ping to indicate content script is ready
+    sendResponse({ status: "ready" });
   }
 
   // Returning true keeps the message channel open for async responses

@@ -60,7 +60,15 @@ async function forwardAudioUrlToContentScript(audioUrl) {
     let tabs = await browser.tabs.query({active: true, currentWindow: true});
     if (tabs.length > 0) {
       console.log('Sending audio URL to content script:', audioUrl);
-      await browser.tabs.sendMessage(tabs[0].id, {action: "playAudio", url: audioUrl});
+      // Check if the content script is ready
+      const isContentScriptReady = await browser.tabs.sendMessage(tabs[0].id, {action: "ping"}).catch(() => false);
+      if (isContentScriptReady) {
+        await browser.tabs.sendMessage(tabs[0].id, {action: "playAudio", url: audioUrl});
+      } else {
+        console.log('Content script not ready, waiting and retrying...');
+        // Wait for a short time and retry
+        setTimeout(() => forwardAudioUrlToContentScript(audioUrl), 1000);
+      }
     } else {
       console.error('No active tab found to send the audio URL');
     }
