@@ -15,6 +15,9 @@ let currentSong = {
 let startTime = null;
 let elapsedTimeInterval = null;
 
+// Store the ID of the tab that made the request
+let requestingTabId = null;
+
 // Set initial browser action title
 updateBrowserActionTitle();
 
@@ -65,6 +68,7 @@ browser.menus.onClicked.addListener((info, tab) => {
           songType = "cute";
           break;
       }
+      requestingTabId = tab.id; // Store the tab ID
       sendContentToApp(content, songType);
       startTimer();
     }
@@ -78,19 +82,16 @@ port.onMessage.addListener((response) => {
   console.log("Received: ", response);
   if (response.audio_url) {
     forwardAudioUrlToContentScript(response.audio_url);
-    stopTimer(); // Stop the timer when we receive the audio URL
-//    startTimer(); // Start the timer when we receive the audio URL
+    stopTimer();
   }
   if (response.song_info) {
     console.log("Updating song info", response.song_info);
     updateSongInfo(response.song_info);
   }
-  // Store url in currentSong object
   if (response.url) {
     currentSong.url = response.url;
   }
   if (response.song_info && response.song_info.style) {
-    // Store style in currentSong object
     currentSong.style = response.song_info.style;
   }
 });
@@ -107,7 +108,7 @@ function updateBrowserActionTitle() {
   if (currentSong.title) {
     let elapsedTime = startTime ? Math.floor((Date.now() - startTime) / 1000) : 0;
     let currentTime = new Date().toLocaleTimeString();
-    
+
     if (currentSong.state === "writing") {
       my_title = `Writing song about "${currentSong.title}"\n` +
                  `Have waited ${formatTime(elapsedTime)} out of expected ${EXPECTED_DURATION}s for response`;
@@ -168,6 +169,7 @@ Function to get the main content of the current tab
 async function getCurrentTabContent() {
   let tabs = await browser.tabs.query({active: true, currentWindow: true});
   if (tabs.length > 0) {
+    requestingTabId = tabs[0].id; // Store the tab ID
     return await browser.tabs.sendMessage(tabs[0].id, {action: "getText"});
   }
   return null;
@@ -183,24 +185,24 @@ async function forwardAudioUrlToContentScript(audioUrl) {
   }
 
   try {
-    let tabs = await browser.tabs.query({active: true, currentWindow: true});
-    if (tabs.length > 0) {
+    if (requestingTabId) {
       console.log('Sending audio URL to content script:', audioUrl);
       // Check if the content script is ready
-      const isContentScriptReady = await browser.tabs.sendMessage(tabs[0].id, {action: "ping"}).catch(() => false);
+      const isContentScriptReady = await browser.tabs.sendMessage(requestingTabId, {action: "ping"}).catch(() => false);
       if (isContentScriptReady) {
-        await browser.tabs.sendMessage(tabs[0].id, {action: "playAudio", url: audioUrl});
-        stopTimer(); // Stop the timer when we start playing the audio
-        currentSong.state = "playing"; // Update the state to playing
-        currentSong.url = audioUrl; // Update the current song URL
-        updateBrowserActionTitle(); // Update the title to reflect the new state
+        await browser.tabs.sendMessage(requestingTabId, {action: "playAudio", url: audioUrl});
+        stopTimer();
+        currentSong.state = "playing";
+        currentSong.url = audioUrl;
+        updateBrowserActionTitle();
+        requestingTabId = null; // Reset the requesting tab ID after use
       } else {
         console.log('Content script not ready, waiting and retrying...');
         // Wait for a short time and retry
         setTimeout(() => forwardAudioUrlToContentScript(audioUrl), 1000);
       }
     } else {
-      console.error('No active tab found to send the audio URL');
+      console.error('No requesting tab ID found to send the audio URL');
     }
   } catch (error) {
     console.error('Error sending message to content script:', error);
@@ -212,11 +214,10 @@ Function to send content to the app
 */
 async function sendContentToApp(content, songType = "default") {
   console.log(`Sending main content to Python app for ${songType} song`);
-  
-  let tabs = await browser.tabs.query({active: true, currentWindow: true});
-  if (tabs.length > 0) {
-    // Set the currentSong title to the tab's title
-    currentSong.title = tabs[0].title || "Unknown Title";
+
+  if (requestingTabId) {
+    let tab = await browser.tabs.get(requestingTabId);
+    currentSong.title = tab.title || "Unknown Title";
     updateBrowserActionTitle();
   }
 
@@ -232,12 +233,16 @@ async function sendContentToApp(content, songType = "default") {
 On a click on the browser action, send the current tab's main content to the app.
 */
 browser.browserAction.onClicked.addListener(async () => {
-  let content = await getCurrentTabContent();
-  if (content) {
-    sendContentToApp(content, "musical"); // Default to musical song type
-    startTimer(); // Start the timer when the button is clicked
-  } else {
-    console.log("Failed to get main content from current tab");
+  let tabs = await browser.tabs.query({active: true, currentWindow: true});
+  if (tabs.length > 0) {
+    requestingTabId = tabs[0].id; // Store the tab ID
+    let content = await getCurrentTabContent();
+    if (content) {
+      sendContentToApp(content, "musical"); // Default to musical song type
+      startTimer(); // Start the timer when the button is clicked
+    } else {
+      console.log("Failed to get main content from current tab");
+    }
   }
 });
 
