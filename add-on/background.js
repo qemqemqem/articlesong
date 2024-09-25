@@ -10,6 +10,9 @@ let currentSong = {
   duration: ""
 };
 
+// Set initial browser action title
+updateBrowserActionTitle();
+
 /*
 Listen for messages from the app.
 */
@@ -31,7 +34,10 @@ function updateSongInfo(songInfo) {
 
 // Function to update browser action title
 function updateBrowserActionTitle() {
-  const title = `Now playing: ${currentSong.title} by ${currentSong.artist} (${currentSong.duration})`;
+  let title = "Turn articles into songs!";
+  if (currentSong.title) {
+    title = `Now playing: ${currentSong.title} by ${currentSong.artist} (${currentSong.duration})`;
+  }
   browser.browserAction.setTitle({ title });
 }
 
