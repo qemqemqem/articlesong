@@ -224,8 +224,7 @@ async function forwardAudioUrlToContentScript(audioUrl) {
           console.log('Downloading audio file...' + audioUrl)
           browser.downloads.download({
             url: audioUrl,
-            filename: `${currentSong.title || 'song'}.mp3`,
-            saveAs: true
+            filename: `${currentSong.title || 'song'}.mp3`
           });
         }, 4 * 60 * 1000); // 4 minutes in milliseconds
 
