@@ -217,6 +217,17 @@ async function forwardAudioUrlToContentScript(audioUrl) {
         currentSong.url = audioUrl;
         updateBrowserActionTitle();
 
+        // Start a 4-minute timer to download the audio
+        // NOTE: This is a hack to give the file time to finish streaming.
+        // We apologize to the reader for this inelegant solution.
+        setTimeout(() => {
+          browser.downloads.download({
+            url: audioUrl,
+            filename: `${currentSong.title || 'song'}.mp3`,
+            saveAs: true
+          });
+        }, 4 * 60 * 1000); // 4 minutes in milliseconds
+
         requestingTabId = null; // Reset the requesting tab ID after use
       } else {
         console.log('Content script not ready, waiting and retrying...');
