@@ -216,15 +216,7 @@ async function forwardAudioUrlToContentScript(audioUrl) {
         currentSong.state = "playing";
         currentSong.url = audioUrl;
         updateBrowserActionTitle();
-        
-        // Download the audio file
-        let filename = `${currentSong.title || 'article'}.mp3`;
-        browser.downloads.download({
-          url: audioUrl,
-          filename: filename,
-          saveAs: false
-        });
-        
+
         requestingTabId = null; // Reset the requesting tab ID after use
       } else {
         console.log('Content script not ready, waiting and retrying...');
