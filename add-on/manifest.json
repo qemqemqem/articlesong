@@ -28,7 +28,8 @@
     "downloads",
     "file:///*",
     "menus",
-    "<all_urls>"
+    "<all_urls>",
+    "storage"
   ],
 
   "content_scripts": [
@@ -36,5 +37,9 @@
       "matches": ["<all_urls>"],
       "js": ["Readability.js", "content_script.js"]
     }
-  ]
+  ],
+
+  "options_ui": {
+    "page": "options.html"
+  }
 }

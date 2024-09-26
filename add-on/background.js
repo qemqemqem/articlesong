@@ -3,6 +3,22 @@ On startup, connect to the "article_singer" app.
 */
 let port = browser.runtime.connectNative("article_singer");
 
+// Add these variables at the top of the file
+let OPENAI_API_KEY = '';
+let PIAPI_KEY = '';
+
+// Add this function to load the API keys
+function loadAPIKeys() {
+  browser.storage.sync.get(['openai_api_key', 'piapi_key']).then((result) => {
+    OPENAI_API_KEY = result.openai_api_key || '';
+    PIAPI_KEY = result.piapi_key || '';
+    console.log('API keys loaded');
+  }, console.error);
+}
+
+// Call loadAPIKeys at startup
+loadAPIKeys();
+
 // Store current song information and state
 let currentSong = {
   title: "",
@@ -257,7 +273,9 @@ async function sendContentToApp(content, songType = "default") {
   const payload = {
     action: "process_text",
     text: JSON.stringify(content),
-    songType: songType
+    songType: songType,
+    openai_api_key: OPENAI_API_KEY,
+    piapi_key: PIAPI_KEY
   };
   port.postMessage(payload);
 }
@@ -287,5 +305,17 @@ browser.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
     browser.tabs.executeScript(tabId, {
       file: "content_script.js"
     });
+  }
+});
+
+// Add a listener for storage changes to update the API keys
+browser.storage.onChanged.addListener((changes, area) => {
+  if (area === 'sync') {
+    if (changes.openai_api_key) {
+      OPENAI_API_KEY = changes.openai_api_key.newValue;
+    }
+    if (changes.piapi_key) {
+      PIAPI_KEY = changes.piapi_key.newValue;
+    }
   }
 });
