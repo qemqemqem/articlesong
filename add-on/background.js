@@ -221,6 +221,7 @@ async function forwardAudioUrlToContentScript(audioUrl) {
         // NOTE: This is a hack to give the file time to finish streaming.
         // We apologize to the reader for this inelegant solution.
         setTimeout(() => {
+          console.log('Downloading audio file...' + audioUrl)
           browser.downloads.download({
             url: audioUrl,
             filename: `${currentSong.title || 'song'}.mp3`,
