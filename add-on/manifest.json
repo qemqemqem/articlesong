@@ -27,7 +27,8 @@
     "activeTab",
     "downloads",
     "file:///*",
-    "menus"
+    "menus",
+    "<all_urls>"
   ],
 
   "content_scripts": [
