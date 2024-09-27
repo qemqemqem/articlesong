@@ -1,11 +1,40 @@
-/*
-On startup, connect to the "article_singer" app.
-*/
-let port = browser.runtime.connectNative("article_singer");
-
 // Add these variables at the top of the file
 let OPENAI_API_KEY = '';
 let PIAPI_KEY = '';
+let port;
+
+// Function to connect to the native app
+function connectToNativeApp() {
+  if (port) {
+    port.disconnect();
+  }
+  port = browser.runtime.connectNative("article_singer");
+  
+  port.onDisconnect.addListener((p) => {
+    if (p.error) {
+      console.error(`Disconnected due to an error: ${p.error.message}`);
+    }
+    port = null;
+  });
+
+  port.onMessage.addListener((response) => {
+    console.log("Received: ", response);
+    if (response.audio_url) {
+      forwardAudioUrlToContentScript(response.audio_url);
+      stopTimer();
+    }
+    if (response.song_info) {
+      console.log("Updating song info", response.song_info);
+      updateSongInfo(response.song_info);
+    }
+    if (response.url) {
+      currentSong.url = response.url;
+    }
+    if (response.song_info && response.song_info.style) {
+      currentSong.style = response.song_info.style;
+    }
+  });
+}
 
 // Add this function to load the API keys
 function loadAPIKeys() {
@@ -16,8 +45,9 @@ function loadAPIKeys() {
   }, console.error);
 }
 
-// Call loadAPIKeys at startup
+// Call loadAPIKeys and connectToNativeApp at startup
 loadAPIKeys();
+connectToNativeApp();
 
 // Store current song information and state
 let currentSong = {
@@ -277,13 +307,29 @@ async function sendContentToApp(content, songType = "default") {
     openai_api_key: OPENAI_API_KEY,
     piapi_key: PIAPI_KEY
   };
-  port.postMessage(payload);
+  
+  if (port) {
+    port.postMessage(payload);
+  } else {
+    console.error("Native app connection is not available");
+    // Optionally, you could try to reconnect here
+    connectToNativeApp();
+    // And then send the message after a short delay
+    setTimeout(() => {
+      if (port) {
+        port.postMessage(payload);
+      } else {
+        console.error("Failed to reconnect to native app");
+      }
+    }, 1000);
+  }
 }
 
 /*
-On a click on the browser action, send the current tab's main content to the app.
+On a click on the browser action, reconnect to the native app and send the current tab's main content to the app.
 */
 browser.browserAction.onClicked.addListener(async () => {
+  connectToNativeApp(); // Reconnect to the native app
   let tabs = await browser.tabs.query({active: true, currentWindow: true});
   if (tabs.length > 0) {
     requestingTabId = tabs[0].id; // Store the tab ID
