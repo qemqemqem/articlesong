@@ -3,9 +3,11 @@ import aiohttp
 import os
 from typing import Optional, Dict, Any
 
+from dotenv import load_dotenv
+
 print("Loading dotenv")
 
-from dotenv import load_dotenv
+# from dotenv import load_dotenv
 
 # This uses PiAPI: https://piapi.ai/suno-api
 # You will need to create an account, get an API key, and give them some money to use this API. Sorry about that!
@@ -13,6 +15,10 @@ from dotenv import load_dotenv
 API_BASE_URL = "https://api.piapi.ai/api/suno/v1/music"
 
 load_dotenv()
+
+# PIAPI_KEY = ""
+
+# def load_piapi_key():
 PIAPI_KEY = os.getenv('PIAPI_KEY')
 print(f"The PIAPI_KEY is: {PIAPI_KEY}")
 
@@ -32,6 +38,7 @@ async def generate_audio(prompt: Optional[str] = None, lyrics: Optional[str] = N
     :param max_retries: Maximum number of status checks before giving up
     :return: Dictionary containing audio URL and metadata
     """
+    # load_piapi_key()
     if not PIAPI_KEY:
         raise ValueError("PIAPI_KEY environment variable is not set")
 

@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 import asyncio
+import os
 import sys
 import json
 import struct
@@ -17,7 +18,7 @@ def create_audio_data(text, style):
     try:
         # Generate lyrics using GPT
         lyrics_prompt = f"Write song lyrics based on the following text. Try to use as much of the content as possible in your song. But ignore headers and footers and other boilerplate I may have copied inadvertently:\n\n{text}\n\nWrite the lyrics without any annotations like 'Chorus' or 'Verse 1'.\n\n"
-        
+
         if style == "spoken":
             lyrics_prompt += "Focus on a spoken word style, with a rhythmic flow and emphasis on the words rather than melody."
         elif style == "musical":
@@ -83,7 +84,8 @@ def process_text(text, style):
     audio_url, chosen_style, lyrics = create_audio_data(text, style)
     if audio_url:
         print(f"WARNING: Audio URL created: {audio_url[:50]}...")  # Print first 50 characters
-        return {"message": "Audio data created", "audio_url": audio_url, "song_info": {"style": chosen_style, "url": audio_url, "lyrics": lyrics}}
+        return {"message": "Audio data created", "audio_url": audio_url,
+                "song_info": {"style": chosen_style, "url": audio_url, "lyrics": lyrics}}
     else:
         print("ERROR: Failed to create audio data")
         return {"message": "Failed to create audio data", "error": "Audio generation failed"}
@@ -94,6 +96,13 @@ while True:
     if isinstance(receivedMessage, dict) and receivedMessage.get('action') == 'process_text':
         the_text = receivedMessage.get('text', '')
         the_style = receivedMessage.get('songType', 'default')
+
+        # Get the API keys
+        openai_key = receivedMessage.get('openai_api_key', '')
+        piapi_key = receivedMessage.get('piapi_key', '')
+        os.environ["OPENAI_API_KEY"] = openai_key
+        os.environ["PIAPI_KEY"] = piapi_key
+
         # Check if the_text is dict-like, if it can be parsed as a dict
         try:
             the_text = json.loads(the_text)
