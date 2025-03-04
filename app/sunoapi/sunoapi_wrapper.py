@@ -11,10 +11,15 @@ print("Loading dotenv")
 load_dotenv()
 
 # Suno API configuration
-BASE_URL = "https://api.sunoapi.org/v1"
+# Try multiple potential API endpoints
+API_ENDPOINTS = [
+    "https://api.suno.ai/api/v1",
+    "https://api.suno.ai/v1",
+    "https://api.sunoapi.org/v1"
+]
+BASE_URL = None  # Will be set after testing connectivity
 SUNOAPI_KEY = os.getenv('SUNOAPI_KEY')
 print(f"The SUNOAPI_KEY is: {'*' * (len(SUNOAPI_KEY) - 4) + SUNOAPI_KEY[-4:] if SUNOAPI_KEY else 'Not set'}")
-print(f"Using API endpoint: {BASE_URL}")
 
 assert SUNOAPI_KEY, "You must set the SUNOAPI_KEY. See README or contact the author."
 assert(len(SUNOAPI_KEY) > 5), "SUNOAPI_KEY does not seem to be valid!"
@@ -197,23 +202,65 @@ async def download_song(session: aiohttp.ClientSession, song_id: str) -> str:
             return download_data.get("url")
 
 
+async def test_api_endpoints():
+    """Test connectivity to different potential API endpoints and select the working one."""
+    global BASE_URL
+    
+    print("\n" + "="*50)
+    print("TESTING SUNO API ENDPOINTS")
+    print("="*50)
+    
+    async with aiohttp.ClientSession() as session:
+        for endpoint in API_ENDPOINTS:
+            try:
+                base_domain = endpoint.split("/")[2]  # Extract domain from URL
+                print(f"Testing connection to: {base_domain}")
+                
+                # Try to resolve the domain first
+                try:
+                    import socket
+                    ip_address = socket.gethostbyname(base_domain)
+                    print(f"DNS resolution successful: {base_domain} -> {ip_address}")
+                except socket.gaierror:
+                    print(f"DNS resolution failed for {base_domain}")
+                    continue
+                
+                # Try to connect to the base domain
+                try:
+                    base_url = f"https://{base_domain}"
+                    print(f"Testing HTTP connection to: {base_url}")
+                    async with session.get(base_url, timeout=5) as response:
+                        print(f"Connection status: {response.status}")
+                        
+                        # Now test the full API endpoint
+                        print(f"Testing API endpoint: {endpoint}")
+                        try:
+                            async with session.get(endpoint, timeout=5) as api_response:
+                                print(f"API endpoint status: {api_response.status}")
+                                if api_response.status < 500:  # Accept any non-server error response
+                                    print(f"Found working API endpoint: {endpoint}")
+                                    BASE_URL = endpoint
+                                    return True
+                        except Exception as api_err:
+                            print(f"API endpoint test failed: {api_err}")
+                except Exception as err:
+                    print(f"Connection test failed: {err}")
+            except Exception as e:
+                print(f"Test failed for {endpoint}: {e}")
+    
+    # If we get here, none of the endpoints worked
+    print("ERROR: Could not connect to any Suno API endpoint")
+    return False
+
 async def main():
     """Example usage of the Suno API wrapper."""
     try:
-        print("\n" + "="*50)
-        print("TESTING SUNO API CONNECTION")
-        print("="*50)
+        # First test and select a working API endpoint
+        if not await test_api_endpoints():
+            print("Failed to find a working API endpoint. Exiting.")
+            return
         
-        # Test basic connectivity to the API
-        async with aiohttp.ClientSession() as session:
-            try:
-                test_url = f"{BASE_URL.split('/v1')[0]}"
-                print(f"Testing connection to: {test_url}")
-                async with session.get(test_url) as response:
-                    print(f"Connection test status: {response.status}")
-                    print(f"Connection successful!")
-            except Exception as e:
-                print(f"Connection test failed: {e}")
+        print(f"Using API endpoint: {BASE_URL}")
         
         print("\n" + "="*50)
         print("GENERATING SONG")
@@ -248,4 +295,10 @@ async def main():
 
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    # Add a timeout to prevent hanging indefinitely
+    try:
+        asyncio.run(main())
+    except asyncio.TimeoutError:
+        print("Operation timed out. Please check your internet connection.")
+    except KeyboardInterrupt:
+        print("\nOperation cancelled by user.")
