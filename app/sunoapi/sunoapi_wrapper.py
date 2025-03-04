@@ -11,7 +11,7 @@ print("Loading dotenv")
 load_dotenv()
 
 # Suno API configuration
-BASE_URL = "https://api.sunoapi.org/v1"
+BASE_URL = "https://api.suno.ai/api/v1"
 SUNOAPI_KEY = os.getenv('SUNOAPI_KEY')
 print(f"The SUNOAPI_KEY is: {'*' * (len(SUNOAPI_KEY) - 4) + SUNOAPI_KEY[-4:] if SUNOAPI_KEY else 'Not set'}")
 
@@ -104,11 +104,19 @@ async def submit_request(session: aiohttp.ClientSession, prompt: Optional[str], 
     }
     
     print(f"Submitting request to generate song: {json.dumps(data, indent=2)}")
+    print(f"Sending request to: {BASE_URL}/songs")
     
-    async with session.post(f"{BASE_URL}/songs", headers=headers, json=data) as response:
-        if response.status != 200:
-            error_text = await response.text()
-            raise Exception(f"Failed to generate song: {response.status} - {error_text}")
+    try:
+        async with session.post(f"{BASE_URL}/songs", headers=headers, json=data) as response:
+            if response.status != 200:
+                error_text = await response.text()
+                raise Exception(f"Failed to generate song: {response.status} - {error_text}")
+            
+            return await response.json()
+    except aiohttp.ClientConnectorError as e:
+        print(f"Connection error: {e}")
+        print("Please check your internet connection and verify the API endpoint is correct.")
+        raise Exception(f"Connection error: {e}")
         
         return await response.json()
 
