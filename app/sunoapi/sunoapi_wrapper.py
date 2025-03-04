@@ -11,7 +11,7 @@ print("Loading dotenv")
 load_dotenv()
 
 # Suno API configuration
-BASE_URL = "https://api.suno.ai/api/v1"
+BASE_URL = "https://api.sunoapi.org/v1"
 SUNOAPI_KEY = os.getenv('SUNOAPI_KEY')
 print(f"The SUNOAPI_KEY is: {'*' * (len(SUNOAPI_KEY) - 4) + SUNOAPI_KEY[-4:] if SUNOAPI_KEY else 'Not set'}")
 print(f"Using API endpoint: {BASE_URL}")
@@ -127,7 +127,14 @@ async def submit_request(session: aiohttp.ClientSession, prompt: Optional[str], 
             print(f"Response body: {response_text[:200]}{'...' if len(response_text) > 200 else ''}")
             
             if response.status != 200:
-                raise Exception(f"Failed to generate song: {response.status} - {response_text}")
+                error_message = f"Failed to generate song: {response.status} - {response_text}"
+                if response.status == 503:
+                    error_message += "\n\nThe Suno API service is temporarily unavailable. Please try again later."
+                elif response.status == 401:
+                    error_message += "\n\nAuthentication failed. Please check your API key."
+                elif response.status == 400:
+                    error_message += "\n\nBad request. Please check your request parameters."
+                raise Exception(error_message)
             
             return json.loads(response_text)
     except aiohttp.ClientConnectorError as e:
@@ -200,7 +207,7 @@ async def main():
         # Test basic connectivity to the API
         async with aiohttp.ClientSession() as session:
             try:
-                test_url = f"{BASE_URL.split('/api/v1')[0]}"
+                test_url = f"{BASE_URL.split('/v1')[0]}"
                 print(f"Testing connection to: {test_url}")
                 async with session.get(test_url) as response:
                     print(f"Connection test status: {response.status}")
