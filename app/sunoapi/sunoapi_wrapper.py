@@ -11,7 +11,7 @@ print("Loading dotenv")
 load_dotenv()
 
 # Suno API configuration
-BASE_URL = "https://api.suno.ai/api/v1"
+BASE_URL = "https://api.sunoapi.org/v1"
 SUNOAPI_KEY = os.getenv('SUNOAPI_KEY')
 print(f"The SUNOAPI_KEY is: {'*' * (len(SUNOAPI_KEY) - 4) + SUNOAPI_KEY[-4:] if SUNOAPI_KEY else 'Not set'}")
 
