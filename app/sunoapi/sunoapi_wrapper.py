@@ -11,9 +11,10 @@ print("Loading dotenv")
 load_dotenv()
 
 # Suno API configuration
-BASE_URL = "https://api.sunoapi.org/v1"
+BASE_URL = "https://api.suno.ai/api/v1"
 SUNOAPI_KEY = os.getenv('SUNOAPI_KEY')
 print(f"The SUNOAPI_KEY is: {'*' * (len(SUNOAPI_KEY) - 4) + SUNOAPI_KEY[-4:] if SUNOAPI_KEY else 'Not set'}")
+print(f"Using API endpoint: {BASE_URL}")
 
 assert SUNOAPI_KEY, "You must set the SUNOAPI_KEY. See README or contact the author."
 assert(len(SUNOAPI_KEY) > 5), "SUNOAPI_KEY does not seem to be valid!"
@@ -103,22 +104,50 @@ async def submit_request(session: aiohttp.ClientSession, prompt: Optional[str], 
         "tags": tags
     }
     
+    endpoint = f"{BASE_URL}/songs"
     print(f"Submitting request to generate song: {json.dumps(data, indent=2)}")
-    print(f"Sending request to: {BASE_URL}/songs")
+    print(f"Sending request to: {endpoint}")
+    print(f"Headers: {json.dumps({k: '***' if k == 'Authorization' else v for k, v in headers.items()})}")
     
     try:
-        async with session.post(f"{BASE_URL}/songs", headers=headers, json=data) as response:
-            if response.status != 200:
-                error_text = await response.text()
-                raise Exception(f"Failed to generate song: {response.status} - {error_text}")
+        # Test DNS resolution
+        import socket
+        host = endpoint.split("//")[1].split("/")[0]
+        print(f"Attempting to resolve DNS for: {host}")
+        try:
+            ip_address = socket.gethostbyname(host)
+            print(f"Successfully resolved {host} to {ip_address}")
+        except socket.gaierror as dns_error:
+            print(f"DNS resolution failed: {dns_error}")
+        
+        print(f"Sending POST request to {endpoint}")
+        async with session.post(endpoint, headers=headers, json=data) as response:
+            print(f"Response status: {response.status}")
+            response_text = await response.text()
+            print(f"Response body: {response_text[:200]}{'...' if len(response_text) > 200 else ''}")
             
-            return await response.json()
+            if response.status != 200:
+                raise Exception(f"Failed to generate song: {response.status} - {response_text}")
+            
+            return json.loads(response_text)
     except aiohttp.ClientConnectorError as e:
         print(f"Connection error: {e}")
         print("Please check your internet connection and verify the API endpoint is correct.")
-        raise Exception(f"Connection error: {e}")
+        print(f"Trying to ping the host...")
         
-        return await response.json()
+        # Try to ping the host
+        import subprocess
+        try:
+            host = endpoint.split("//")[1].split("/")[0]
+            result = subprocess.run(['ping', '-c', '3', host], 
+                                   stdout=subprocess.PIPE, 
+                                   stderr=subprocess.PIPE,
+                                   text=True)
+            print(f"Ping result: {result.stdout}")
+        except Exception as ping_error:
+            print(f"Ping failed: {ping_error}")
+            
+        raise Exception(f"Connection error: {e}")
 
 
 async def download_song(session: aiohttp.ClientSession, song_id: str) -> str:
@@ -134,12 +163,18 @@ async def download_song(session: aiohttp.ClientSession, song_id: str) -> str:
     }
     
     # First check if the song is ready
-    async with session.get(f"{BASE_URL}/songs/{song_id}", headers=headers) as response:
-        if response.status != 200:
-            error_text = await response.text()
-            raise Exception(f"Failed to check song status: {response.status} - {error_text}")
+    status_endpoint = f"{BASE_URL}/songs/{song_id}"
+    print(f"Checking song status at: {status_endpoint}")
+    
+    async with session.get(status_endpoint, headers=headers) as response:
+        print(f"Status check response code: {response.status}")
+        response_text = await response.text()
+        print(f"Status check response: {response_text[:200]}{'...' if len(response_text) > 200 else ''}")
         
-        song_data = await response.json()
+        if response.status != 200:
+            raise Exception(f"Failed to check song status: {response.status} - {response_text}")
+        
+        song_data = json.loads(response_text)
         
         # Check if the song is ready
         if song_data.get("status") != "complete":
@@ -158,6 +193,25 @@ async def download_song(session: aiohttp.ClientSession, song_id: str) -> str:
 async def main():
     """Example usage of the Suno API wrapper."""
     try:
+        print("\n" + "="*50)
+        print("TESTING SUNO API CONNECTION")
+        print("="*50)
+        
+        # Test basic connectivity to the API
+        async with aiohttp.ClientSession() as session:
+            try:
+                test_url = f"{BASE_URL.split('/api/v1')[0]}"
+                print(f"Testing connection to: {test_url}")
+                async with session.get(test_url) as response:
+                    print(f"Connection test status: {response.status}")
+                    print(f"Connection successful!")
+            except Exception as e:
+                print(f"Connection test failed: {e}")
+        
+        print("\n" + "="*50)
+        print("GENERATING SONG")
+        print("="*50)
+        
         # Example 1: Generate a song about parakeets using a prompt
         prompt = "A cheerful folk song about colorful parakeets flying in the sky, with chirping sounds and nature themes"
         result = await generate_audio(prompt=prompt, title="Parakeet Paradise", tags="folk, nature, birds")
