@@ -1,0 +1,27 @@
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.3.0
+    hooks:
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+      - id: check-yaml
+
+  - repo: local
+    hooks:
+      - id: pytest
+        name: Run Pytest
+        entry: pytest
+        language: system
+        types: [python]
+
+      - id: jest
+        name: Run Jest
+        entry: npm run test:unit
+        language: system
+        types: [javascript]
+
+      - id: eslint
+        name: Run ESLint
+        entry: npm run lint
+        language: system
+        types: [javascript]

@@ -1,0 +1,90 @@
+{
+  "successful_responses": {
+    "gpt_lyric_response": {
+      "musical": "🎵 Verse 1:\nIn the world of code and dreams so bright,\nWhere algorithms dance through the night,\nMachine learning shows us the way,\nTo a future where computers play!\n\n🎵 Chorus:\nArtificial minds that learn and grow,\nFrom data streams they start to know,\nPatterns hidden in the digital sea,\nUnlocking possibilities we can see!\n\n🎵 Verse 2:\nNo explicit code to tell them how,\nThey find the patterns anyhow,\nExperience becomes their guide,\nAs intelligence grows from inside!",
+      "spoken": "In today's presentation, we explore the fascinating world of machine learning, a revolutionary subset of artificial intelligence that enables computers to learn and improve through experience, without the need for explicit programming.",
+      "meme": "When you realize machine learning is just fancy pattern matching... 😎 *drops mic* But seriously folks, it's actually pretty cool how these algorithms can learn from data!",
+      "informative": "Machine learning fundamentally works by analyzing large datasets to identify patterns and relationships. The system then uses these patterns to make predictions or decisions about new, unseen data.",
+      "cute": "Once upon a time, in a magical land called Silicon Valley, little computer programs learned to think for themselves! 🤖✨ They studied lots and lots of examples until they became super smart!",
+      "straight": "Machine learning is a subset of artificial intelligence that focuses on the development of algorithms and statistical models that enable computers to improve their performance on a specific task through experience without being explicitly programmed."
+    },
+    "suno_audio_response": {
+      "musical": "https://cdn1.suno.ai/12345678-1234-5678-9012-123456789012.mp3",
+      "spoken": "https://cdn1.suno.ai/87654321-4321-8765-2109-876543210987.mp3",
+      "meme": "https://cdn1.suno.ai/11111111-2222-3333-4444-555555555555.mp3",
+      "informative": "https://cdn1.suno.ai/66666666-7777-8888-9999-000000000000.mp3",
+      "cute": "https://cdn1.suno.ai/aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee.mp3",
+      "straight": "https://cdn1.suno.ai/ffffffff-0000-1111-2222-333333333333.mp3"
+    },
+    "complete_response": {
+      "success": true,
+      "audio_url": "https://cdn1.suno.ai/12345678-1234-5678-9012-123456789012.mp3",
+      "lyrics": "🎵 Verse 1:\nIn the world of code and dreams so bright,\nWhere algorithms dance through the night,\nMachine learning shows us the way,\nTo a future where computers play!\n\n🎵 Chorus:\nArtificial minds that learn and grow,\nFrom data streams they start to know,\nPatterns hidden in the digital sea,\nUnlocking possibilities we can see!"
+    }
+  },
+  "error_responses": {
+    "gpt_api_error": {
+      "error": "OpenAI API Error",
+      "message": "Rate limit exceeded. Please try again later.",
+      "details": {
+        "type": "rate_limit_exceeded",
+        "code": "rate_limit_exceeded"
+      }
+    },
+    "suno_api_error": {
+      "error": "Suno API Error",
+      "message": "Audio generation failed. Please try again.",
+      "details": {
+        "type": "generation_failed",
+        "code": "audio_generation_error"
+      }
+    },
+    "authentication_error": {
+      "error": "Authentication Error",
+      "message": "Invalid API key provided.",
+      "details": {
+        "type": "invalid_api_key",
+        "code": "authentication_failed"
+      }
+    },
+    "timeout_error": {
+      "error": "Timeout Error",
+      "message": "Request timed out. Please try again.",
+      "details": {
+        "type": "timeout",
+        "code": "request_timeout"
+      }
+    },
+    "invalid_input_error": {
+      "error": "Invalid Input",
+      "message": "Text content is too long or contains invalid characters.",
+      "details": {
+        "type": "validation_error",
+        "code": "invalid_input"
+      }
+    },
+    "general_error": {
+      "error": "Processing Error",
+      "message": "Failed to create audio data",
+      "details": {
+        "type": "processing_error",
+        "code": "unknown_error"
+      }
+    }
+  },
+  "edge_cases": {
+    "empty_response": {},
+    "malformed_json": "{invalid_json_structure}",
+    "null_response": null,
+    "large_response": {
+      "success": true,
+      "audio_url": "https://cdn1.suno.ai/large-file.mp3",
+      "lyrics": "VERY_LONG_LYRICS_CONTENT_PLACEHOLDER",
+      "metadata": {
+        "file_size": "50MB",
+        "duration": "300 seconds",
+        "bitrate": "320kbps"
+      }
+    }
+  }
+}

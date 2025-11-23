@@ -1,0 +1,42 @@
+{
+  "name": "articlesong",
+  "version": "1.0.0",
+  "description": "Browser extension that converts web page content into songs using AI music generation",
+  "main": "add-on/background.js",
+  "scripts": {
+    "test": "jest",
+    "test:unit": "jest --testPathPattern=tests/unit",
+    "test:integration": "jest --testPathPattern=tests/integration",
+    "test:e2e": "jest --testPathPattern=tests/e2e",
+    "test:perf": "jest --testPathPattern=tests/performance",
+    "test:sec": "jest --testPathPattern=tests/security",
+    "test:watch": "jest --watch",
+    "test:coverage": "jest --coverage",
+    "ci": "npm run test:unit && npm run test:integration && npm run test:e2e",
+    "lint": "eslint add-on/**/*.js",
+    "lint:fix": "eslint add-on/**/*.js --fix"
+  },
+  "keywords": ["browser-extension", "ai", "music", "tts"],
+  "author": "",
+  "license": "MIT",
+  "devDependencies": {
+    "jest": "^29.7.0",
+    "jest-environment-jsdom": "^29.7.0",
+    "@babel/preset-env": "^7.23.6",
+    "@babel/core": "^7.23.6",
+    "babel-jest": "^29.7.0",
+    "playwright": "^1.40.1",
+    "selenium-webdriver": "^4.16.0",
+    "eslint": "^8.56.0"
+  },
+  "jest": {
+    "testEnvironment": "jsdom",
+    "setupFilesAfterEnv": ["<rootDir>/tests/setup.js"],
+    "collectCoverageFrom": [
+      "add-on/**/*.js",
+      "!add-on/Readability.js"
+    ],
+    "coverageDirectory": "coverage",
+    "coverageReporters": ["text", "lcov", "html"]
+  }
+}
