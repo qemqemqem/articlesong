@@ -23,6 +23,7 @@ const activeRequests = new Map(); // id -> { request, abortController, pollInter
 let allRequests = []; // All requests (active + history)
 let settings = {
   autoDownload: false,
+  downloadOnly: false,
   downloadDirectory: 'ArticleSongs',
   maxHistoryItems: 20,
   autoPlayOnComplete: true,
@@ -32,7 +33,11 @@ let settings = {
 
 const EXPECTED_DURATION = 180; // seconds (3 min typical for V5)
 
-Logger.info('Article Song extension loaded! [VERSION: 2024-11-23-05:07 - PRODUCTION MODE]');
+const BACKGROUND_VERSION = '2024-11-23-18:30-CUSTOM-STYLES';
+Logger.info('═══════════════════════════════════════════════════════');
+Logger.info(`Article Song Background Script LOADED! [${BACKGROUND_VERSION}]`);
+Logger.info('Custom Styles Feature: ENABLED');
+Logger.info('═══════════════════════════════════════════════════════');
 
 // ============================================================================
 // STORAGE & INITIALIZATION
@@ -87,12 +92,24 @@ browser.storage.onChanged.addListener((changes, area) => {
 // ============================================================================
 
 function createRequest(articleText, articleUrl, articleTitle, songStyle, tabId) {
+  // Handle both string (legacy) and object (new) songStyle
+  let styleObj = songStyle;
+  if (typeof songStyle === 'string') {
+    // Legacy string format - keep it as-is for backward compatibility
+    styleObj = { id: songStyle, name: songStyle };
+  }
+  
+  Logger.info(`Creating request with "${styleObj.name}" style`, {
+    hasCustomDescription: !!styleObj.description,
+    descriptionPreview: styleObj.description ? styleObj.description.substring(0, 80) + '...' : 'none'
+  });
+  
   const request = {
     id: generateRequestId(),
     articleTitle,
     articleUrl,
     articleText,
-    songStyle,
+    songStyle: styleObj, // Store the full style object
     status: 'RECEIVED',
     progress: {
       elapsed: 0,
@@ -169,7 +186,10 @@ function broadcastUpdate() {
 // ============================================================================
 
 async function generateLyricsWithSuno(request, abortController) {
-  Logger.info(`Generating ${request.songStyle} lyrics with SunoAPI for ${request.id}...`);
+  const styleId = typeof request.songStyle === 'object' ? request.songStyle.id : request.songStyle;
+  const styleName = typeof request.songStyle === 'object' ? request.songStyle.name : request.songStyle;
+  
+  Logger.info(`Generating ${styleName} lyrics with SunoAPI for ${request.id}...`);
   
   if (!SUNO_API_KEY) {
     openSettingsWithError('suno_missing');
@@ -180,7 +200,7 @@ async function generateLyricsWithSuno(request, abortController) {
   updateRequest(request.id, { lyricsProvider: 'suno' });
   
   // Special case: "straight" means use article text directly
-  if (request.songStyle === "straight") {
+  if (styleId === "straight") {
     return request.articleText;
   }
   
@@ -326,7 +346,24 @@ function buildSunoLyricsPrompt(articleText, songStyle) {
   // Build a concise prompt for SunoAPI lyrics generation
   let prompt = `A song about: ${articleText.substring(0, 300)}. `;
   
-  switch(songStyle) {
+  const styleName = typeof songStyle === 'object' ? songStyle.name : songStyle;
+  Logger.debug(`Building Suno lyrics prompt for "${styleName}"`, {
+    hasCustomDescription: typeof songStyle === 'object' && !!songStyle.description
+  });
+  
+  // If songStyle is an object with description, use it
+  if (typeof songStyle === 'object' && songStyle.description) {
+    const styleDesc = songStyle.description.substring(0, 200);
+    prompt += `Style: ${styleDesc}.`;
+    Logger.info(`Using custom "${songStyle.name}" description: ${styleDesc.substring(0, 60)}...`);
+    return prompt;
+  }
+  
+  // Fallback to legacy switch statement for backward compatibility
+  const styleId = typeof songStyle === 'object' ? songStyle.id : songStyle;
+  Logger.warn(`No custom description found for "${styleName}", using default fallback`);
+  
+  switch(styleId) {
     case "spoken":
       prompt += "Style: Spoken word, rhythmic, poetry slam.";
       break;
@@ -342,8 +379,12 @@ function buildSunoLyricsPrompt(articleText, songStyle) {
     case "informative":
       prompt += "Style: Educational, factual, clear.";
       break;
+    case "pop":
+      prompt += "Style: Pop, catchy hooks, radio-friendly.";
+      break;
     default:
-      prompt += "Style: Balanced article-to-song.";
+      // For custom renamed styles, use the name as a hint
+      prompt += `Style: ${styleName} style, engaging and musical.`;
   }
   
   return prompt;
@@ -351,7 +392,18 @@ function buildSunoLyricsPrompt(articleText, songStyle) {
 
 function getFallbackStyleTags(songStyle) {
   // Simple fallback style tags when Anthropic is not available
-  switch(songStyle) {
+  const styleId = typeof songStyle === 'object' ? songStyle.id : songStyle;
+  const styleName = typeof songStyle === 'object' ? songStyle.name : songStyle;
+  
+  // Try to generate tags from the style description if available
+  if (typeof songStyle === 'object' && songStyle.description) {
+    // Extract first few words from description as style hint
+    const descWords = songStyle.description.substring(0, 100).replace(/Style:\s*/i, '');
+    return descWords;
+  }
+  
+  // Default fallbacks for original styles
+  switch(styleId) {
     case "spoken":
       return "Spoken Word, Hip-Hop, Rhythmic Storytelling, 90 BPM, Clear Delivery";
     case "musical":
@@ -362,8 +414,11 @@ function getFallbackStyleTags(songStyle) {
       return "Indie Pop, Dreamy, Upbeat, Warm Synths, Sweet Vocals";
     case "informative":
       return "Educational Folk, Clear, 95 BPM, Acoustic Guitar, Narrative";
+    case "pop":
+      return "Pop, Catchy, Radio-Friendly, Mainstream, Hook-Driven";
     default:
-      return "Indie Pop, Melodic, 110 BPM, Balanced, Contemporary";
+      // For custom renamed styles, use the name as a hint
+      return `${styleName}, Modern, Contemporary, Expressive`;
   }
 }
 
@@ -399,9 +454,12 @@ async function generateLyrics(request, abortController) {
       'anthropic-dangerous-direct-browser-access': 'true'
     },
     body: JSON.stringify({
-      model: 'claude-sonnet-4-5-20250929',
-      max_tokens: 700,
-      temperature: 0.2,
+      model: 'claude-opus-4-1-20250805',
+      max_tokens: 32000,
+      thinking: {
+        type: 'enabled',
+        budget_tokens: 8192
+      },
       system: LYRICS_SYSTEM_PROMPT,
       messages: [{
         role: 'user',
@@ -420,14 +478,42 @@ async function generateLyrics(request, abortController) {
   }
   
   const data = await response.json();
-  const lyrics = data.content[0].text.trim();
+  
+  // Log full response for debugging
+  Logger.info('=== ANTHROPIC LYRICS RESPONSE ===');
+  Logger.info('Response keys:', Object.keys(data));
+  Logger.info('Model:', data.model);
+  Logger.info('Stop reason:', data.stop_reason);
+  Logger.info('Content array length:', data.content?.length);
+  Logger.info('Content blocks:', JSON.stringify(data.content, null, 2));
+  Logger.info('Usage:', JSON.stringify(data.usage, null, 2));
+  
+  // Validate response structure
+  if (!data.content || !Array.isArray(data.content) || data.content.length === 0) {
+    Logger.error('Invalid Anthropic response structure:', data);
+    throw new Error(`Invalid Anthropic response structure: ${JSON.stringify(data)}`);
+  }
+  
+  // Find the text block (extended thinking may add thinking blocks first)
+  const textBlock = data.content.find(block => block.type === 'text');
+  
+  if (!textBlock || !textBlock.text) {
+    Logger.error('No text block found in Anthropic response. Content blocks:', 
+      data.content.map(b => ({ type: b.type, hasText: !!b.text, hasThinking: !!b.thinking })));
+    Logger.error('Full response:', JSON.stringify(data, null, 2));
+    throw new Error(`No text content in Anthropic response. Got ${data.content.length} blocks: ${data.content.map(b => b.type).join(', ')}`);
+  }
+  
+  const lyrics = textBlock.text.trim();
   
   Logger.success(`Lyrics generated for ${request.id} (${lyrics.length} chars)`);
   return lyrics;
 }
 
 async function generateStyleTags(lyrics, songStyle, abortController) {
-  Logger.info(`Generating style tags for ${songStyle}...`);
+  const styleName = typeof songStyle === 'object' ? songStyle.name : songStyle;
+  
+  Logger.info(`Generating style tags for ${styleName}...`);
   
   // If no Anthropic key, use simple fallback style tags
   if (!ANTHROPIC_API_KEY) {
@@ -435,6 +521,7 @@ async function generateStyleTags(lyrics, songStyle, abortController) {
     return getFallbackStyleTags(songStyle);
   }
   
+  // Pass full style object or string to getStyleTagsPrompt
   const prompt = getStyleTagsPrompt(lyrics, songStyle);
   
   const response = await fetch('https://api.anthropic.com/v1/messages', {
@@ -446,9 +533,12 @@ async function generateStyleTags(lyrics, songStyle, abortController) {
       'anthropic-dangerous-direct-browser-access': 'true'
     },
     body: JSON.stringify({
-      model: 'claude-sonnet-4-5-20250929',
-      max_tokens: 50,
-      temperature: 0.2,
+      model: 'claude-opus-4-1-20250805',
+      max_tokens: 12000,
+      thinking: {
+        type: 'enabled',
+        budget_tokens: 4096
+      },
       system: STYLE_SYSTEM_PROMPT,
       messages: [{
         role: 'user',
@@ -467,7 +557,33 @@ async function generateStyleTags(lyrics, songStyle, abortController) {
   }
   
   const data = await response.json();
-  const tags = data.content[0].text.trim();
+  
+  // Log full response for debugging
+  Logger.info('=== ANTHROPIC STYLE TAGS RESPONSE ===');
+  Logger.info('Response keys:', Object.keys(data));
+  Logger.info('Model:', data.model);
+  Logger.info('Stop reason:', data.stop_reason);
+  Logger.info('Content array length:', data.content?.length);
+  Logger.info('Content blocks:', JSON.stringify(data.content, null, 2));
+  Logger.info('Usage:', JSON.stringify(data.usage, null, 2));
+  
+  // Validate response structure
+  if (!data.content || !Array.isArray(data.content) || data.content.length === 0) {
+    Logger.error('Invalid Anthropic response structure:', data);
+    throw new Error(`Invalid Anthropic response structure: ${JSON.stringify(data)}`);
+  }
+  
+  // Find the text block (extended thinking may add thinking blocks first)
+  const textBlock = data.content.find(block => block.type === 'text');
+  
+  if (!textBlock || !textBlock.text) {
+    Logger.error('No text block found in Anthropic response. Content blocks:', 
+      data.content.map(b => ({ type: b.type, hasText: !!b.text, hasThinking: !!b.thinking })));
+    Logger.error('Full response:', JSON.stringify(data, null, 2));
+    throw new Error(`No text content in Anthropic response. Got ${data.content.length} blocks: ${data.content.map(b => b.type).join(', ')}`);
+  }
+  
+  const tags = textBlock.text.trim();
   const trimmedTags = tags.substring(0, 120);
   
   Logger.success(`Style tags generated: "${trimmedTags}"`);
@@ -610,20 +726,40 @@ async function waitForSunoCompletion(request, abortController) {
             streamingUrlDelivered = true;
             
             // Start playback immediately with streaming URL
-            updateRequest(request.id, {
-              status: 'PLAYING',
-              audioUrl: song.audioUrl,
-              imageUrl: song.imageUrl,
-              title: song.title,
-              lyrics: song.prompt,
-              isStreaming: true,
-              progress: { elapsed: 0, estimated: 0 }
-            });
-            
-            // Send to content script right away
-            forwardAudioUrlToContentScript(request.tabId, song.audioUrl, request.id).catch(err => {
-              Logger.warn('Could not forward to content script', err);
-            });
+            // Check if we should play or just download
+            if (settings.downloadOnly) {
+              // Download only mode - mark as complete immediately
+              updateRequest(request.id, {
+                status: 'COMPLETE',
+                audioUrl: song.audioUrl,
+                imageUrl: song.imageUrl,
+                title: song.title,
+                lyrics: song.prompt,
+                isStreaming: false,
+                progress: { elapsed: 0, estimated: 0 },
+                timestamps: {
+                  ...request.timestamps,
+                  completed: Date.now()
+                }
+              });
+              Logger.info('Download-only mode: skipping playback');
+            } else {
+              // Normal mode - play in page
+              updateRequest(request.id, {
+                status: 'PLAYING',
+                audioUrl: song.audioUrl,
+                imageUrl: song.imageUrl,
+                title: song.title,
+                lyrics: song.prompt,
+                isStreaming: true,
+                progress: { elapsed: 0, estimated: 0 }
+              });
+              
+              // Send to content script right away
+              forwardAudioUrlToContentScript(request.tabId, song.audioUrl, request.id).catch(err => {
+                Logger.warn('Could not forward to content script', err);
+              });
+            }
             
             // Show notification if enabled
             if (settings.showNotifications) {
@@ -670,15 +806,40 @@ async function waitForSunoCompletion(request, abortController) {
           
           // If we never got a streaming URL, deliver it now
           if (!streamingUrlDelivered) {
-            updateRequest(request.id, {
-              status: 'PLAYING',
-              audioUrl: song.audioUrl,
-              imageUrl: song.imageUrl,
-              title: song.title,
-              lyrics: song.prompt,
-              isStreaming: false, // Full quality ready
-              progress: { elapsed: 0, estimated: 0 }
-            });
+            // Check if we should play or just download
+            if (settings.downloadOnly) {
+              // Download only mode - mark as complete immediately
+              updateRequest(request.id, {
+                status: 'COMPLETE',
+                audioUrl: song.audioUrl,
+                imageUrl: song.imageUrl,
+                title: song.title,
+                lyrics: song.prompt,
+                isStreaming: false,
+                progress: { elapsed: 0, estimated: 0 },
+                timestamps: {
+                  ...request.timestamps,
+                  completed: Date.now()
+                }
+              });
+              Logger.info('Download-only mode: skipping playback');
+            } else {
+              // Normal mode - play in page
+              updateRequest(request.id, {
+                status: 'PLAYING',
+                audioUrl: song.audioUrl,
+                imageUrl: song.imageUrl,
+                title: song.title,
+                lyrics: song.prompt,
+                isStreaming: false, // Full quality ready
+                progress: { elapsed: 0, estimated: 0 }
+              });
+              
+              // Send to content script
+              forwardAudioUrlToContentScript(request.tabId, song.audioUrl, request.id).catch(err => {
+                Logger.warn('Could not forward to content script', err);
+              });
+            }
           } else {
             // We already started streaming, now mark as complete
             updateRequest(request.id, {
@@ -734,8 +895,10 @@ async function waitForSunoCompletion(request, abortController) {
 // ============================================================================
 
 async function generateSongFromArticle(request) {
+  const styleName = typeof request.songStyle === 'object' ? request.songStyle.name : request.songStyle;
+  
   Logger.info('═══════════════════════════════════════════════════════');
-  Logger.info(`Starting song generation: ${request.songStyle}`, {
+  Logger.info(`Starting "${styleName}" song generation`, {
     requestId: request.id,
     pageTitle: request.articleTitle,
     textLength: request.articleText.length
@@ -900,6 +1063,12 @@ browser.runtime.onMessage.addListener((message, sender, sendResponse) => {
     // Handle song creation from popup
     (async () => {
       try {
+        Logger.info('Received createSong message from popup', {
+          songStyle: message.songStyle,
+          songStyleType: typeof message.songStyle,
+          hasDescription: typeof message.songStyle === 'object' && !!message.songStyle?.description
+        });
+        
         let articleText;
         
         // Use selected text if provided, otherwise get full page content
@@ -1175,18 +1344,20 @@ browser.menus.onClicked.addListener(async (info, tab) => {
       return;
     }
     
-    let songStyle;
+    // Context menu still uses legacy string IDs
+    // These will be converted to style objects in createRequest()
+    let songStyleId;
     switch (info.menuItemId) {
-      case "spoken-word-song": songStyle = "spoken"; break;
-      case "musical-song": songStyle = "musical"; break;
-      case "meme-song": songStyle = "meme"; break;
-      case "cute-song": songStyle = "cute"; break;
-      case "informative-song": songStyle = "informative"; break;
-      case "straight-lyrics": songStyle = "straight"; break;
-      default: songStyle = "musical";
+      case "spoken-word-song": songStyleId = "spoken"; break;
+      case "musical-song": songStyleId = "musical"; break;
+      case "meme-song": songStyleId = "meme"; break;
+      case "cute-song": songStyleId = "cute"; break;
+      case "informative-song": songStyleId = "informative"; break;
+      case "straight-lyrics": songStyleId = "straight"; break;
+      default: songStyleId = "musical";
     }
     
-    const request = createRequest(content.text, tab.url, tab.title, songStyle, tab.id);
+    const request = createRequest(content.text, tab.url, tab.title, songStyleId, tab.id);
     await generateSongFromArticle(request);
     
   } catch (error) {

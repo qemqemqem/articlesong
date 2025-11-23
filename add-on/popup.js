@@ -3,6 +3,7 @@
 
 let requests = [];
 let settings = {};
+let customStyles = []; // Loaded custom song styles
 let selectionInfo = { hasSelection: false, selectedText: '', wordCount: 0 };
 let useSelection = false; // Whether to use selected text for next song creation
 
@@ -23,11 +24,67 @@ const STATUS_CONFIG = {
 // Initialize popup
 async function init() {
   await loadData();
+  await loadStyles(); // Load custom styles
   await checkSelection(); // Check for highlighted text
   renderUI();
+  renderStyleButtons(); // Render dynamic style buttons
   await updateNowPlaying(); // Initial check
   setupEventListeners();
   setupMessageListener();
+  setupStorageListener(); // Listen for style changes
+}
+
+// Load custom styles
+async function loadStyles() {
+  try {
+    // Load the prompts.js functions
+    if (typeof loadCustomStyles !== 'undefined') {
+      customStyles = await loadCustomStyles();
+    } else {
+      console.error('prompts.js not loaded, using hardcoded styles');
+      customStyles = [
+        { id: "spoken", name: "Spoken Word" },
+        { id: "musical", name: "Musical" },
+        { id: "meme", name: "Meme" },
+        { id: "cute", name: "Cute" },
+        { id: "informative", name: "Informative" },
+        { id: "pop", name: "Pop" }
+      ];
+    }
+  } catch (error) {
+    console.error('Error loading styles:', error);
+    // Fallback to defaults
+    customStyles = [
+      { id: "spoken", name: "Spoken Word" },
+      { id: "musical", name: "Musical" },
+      { id: "meme", name: "Meme" },
+      { id: "cute", name: "Cute" },
+      { id: "informative", name: "Informative" },
+      { id: "pop", name: "Pop" }
+    ];
+  }
+}
+
+// Render style buttons dynamically
+function renderStyleButtons() {
+  const container = document.getElementById('style-buttons');
+  if (!container) return;
+  
+  container.innerHTML = '';
+  
+  customStyles.forEach(style => {
+    const button = document.createElement('button');
+    button.className = 'btn btn-primary create-song-btn';
+    button.dataset.styleId = style.id; // Store ID for reference
+    button.textContent = style.name;
+    
+    // Add click handler with full style object
+    button.addEventListener('click', async () => {
+      await createSong(style); // Pass the full style object!
+    });
+    
+    container.appendChild(button);
+  });
 }
 
 // Load data from background
@@ -210,7 +267,8 @@ function createRequestCard(request, isActive) {
   
   // Style tag
   if (request.songStyle) {
-    metaParts.push(`<span class="style-tag">${request.songStyle}</span>`);
+    const styleName = typeof request.songStyle === 'object' ? request.songStyle.name : request.songStyle;
+    metaParts.push(`<span class="style-tag">${styleName}</span>`);
   }
   
   // Time info
@@ -633,13 +691,14 @@ function setupEventListeners() {
     clearHistory();
   });
   
-  // Create song buttons
-  document.querySelectorAll('.create-song-btn').forEach(btn => {
-    btn.addEventListener('click', async () => {
-      const style = btn.dataset.style;
-      await createSong(style);
+  // Create song buttons - now handled in renderStyleButtons()
+  // The "straight lyrics" button still needs handling if it exists
+  const straightBtn = document.querySelector('[data-style="straight"]');
+  if (straightBtn) {
+    straightBtn.addEventListener('click', async () => {
+      await createSong({ id: "straight", name: "Straight", description: "" });
     });
-  });
+  }
   
   // Custom style button
   document.getElementById('custom-style-btn').addEventListener('click', async () => {
@@ -673,6 +732,20 @@ function setupMessageListener() {
         // Update now playing specifically when requests change
         updateNowPlaying();
       });
+    }
+    if (message.action === 'stylesUpdated') {
+      // Styles were updated in the editor, reload them
+      loadStyles().then(renderStyleButtons);
+    }
+  });
+}
+
+// Setup storage listener for style changes
+function setupStorageListener() {
+  browser.storage.onChanged.addListener((changes, area) => {
+    if (area === 'local' && changes.customStyles) {
+      // Styles changed, reload them
+      loadStyles().then(renderStyleButtons);
     }
   });
 }

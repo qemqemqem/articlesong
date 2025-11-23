@@ -48,6 +48,13 @@ All data is stored **locally on your device** using your browser's built-in stor
 - **What's stored:** Your preferences (auto-download, notifications, etc.)
 - **Who has access:** Only you, only on this device
 
+### Custom Song Styles
+- **Storage location:** `browser.storage.local`
+- **What's stored:** Your 6 customized song style names and descriptions
+- **Who has access:** Only you, only on this device
+- **Default:** Comes with 6 pre-configured styles that you can customize
+- **Usage:** These descriptions are sent to AI services (Anthropic or SunoAPI) along with article text when generating lyrics
+
 You can clear all stored data at any time by:
 1. Opening your browser's extension settings
 2. Removing ArticleSong

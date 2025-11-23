@@ -56,6 +56,7 @@ function saveOptions(e) {
   const anthropicKey = document.getElementById('anthropic_api_key').value.trim();
   const sunoKey = document.getElementById('suno_api_key').value.trim();
   const autoDownload = document.getElementById('auto_download').checked;
+  const downloadOnly = document.getElementById('download_only').checked;
   const downloadDirectory = document.getElementById('download_directory').value.trim();
   const sunoModel = document.getElementById('suno_model').value;
   
@@ -97,6 +98,7 @@ function saveOptions(e) {
   const localPromise = browser.storage.local.get('settings').then((result) => {
     const settings = result.settings || {};
     settings.autoDownload = autoDownload;
+    settings.downloadOnly = downloadOnly && autoDownload; // Only save if auto-download is enabled
     settings.downloadDirectory = downloadDirectory;
     settings.sunoModel = sunoModel;
     return browser.storage.local.set({ settings });
@@ -125,6 +127,11 @@ function restoreOptions() {
   const localPromise = browser.storage.local.get(['settings', 'settingsError']).then((result) => {
     const settings = result.settings || {};
     document.getElementById('auto_download').checked = settings.autoDownload || false;
+    document.getElementById('download_only').checked = settings.downloadOnly || false;
+    
+    // Enable/disable download_only based on auto_download
+    updateDownloadOnlyState();
+    
     // Show actual value - could be empty string, undefined (use default), or a custom value
     document.getElementById('download_directory').value = 
       settings.downloadDirectory !== undefined ? settings.downloadDirectory : 'ArticleSongs';
@@ -231,6 +238,28 @@ function setupKeyboardShortcuts() {
   });
 }
 
+function updateDownloadOnlyState() {
+  const autoDownloadCheckbox = document.getElementById('auto_download');
+  const downloadOnlyCheckbox = document.getElementById('download_only');
+  const downloadOnlyLabel = document.getElementById('download-only-label');
+  
+  if (autoDownloadCheckbox.checked) {
+    downloadOnlyCheckbox.disabled = false;
+    downloadOnlyLabel.style.opacity = '1';
+    downloadOnlyLabel.style.cursor = 'pointer';
+  } else {
+    downloadOnlyCheckbox.disabled = true;
+    downloadOnlyCheckbox.checked = false;
+    downloadOnlyLabel.style.opacity = '0.5';
+    downloadOnlyLabel.style.cursor = 'not-allowed';
+  }
+}
+
+// Open style editor
+function openStyleEditor() {
+  browser.tabs.create({ url: browser.runtime.getURL('styles.html') });
+}
+
 // Initialize
 document.addEventListener('DOMContentLoaded', () => {
   restoreOptions();
@@ -238,6 +267,10 @@ document.addEventListener('DOMContentLoaded', () => {
   setupInputListeners();
   setupKeyboardShortcuts();
   document.querySelector('#save').addEventListener('click', saveOptions);
+  document.getElementById('open-style-editor').addEventListener('click', openStyleEditor);
+  
+  // Auto-download checkbox listener
+  document.getElementById('auto_download').addEventListener('change', updateDownloadOnlyState);
   
   // Focus first empty field
   const anthropicInput = document.getElementById('anthropic_api_key');

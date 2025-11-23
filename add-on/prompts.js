@@ -3,7 +3,121 @@
  * Modernized for Claude Sonnet 4.5 and Suno AI (2025)
  * 
  * Updated to use Suno's annotation system and modern prompting techniques.
+ * Supports customizable song styles.
  */
+
+// ============================================================================
+// DEFAULT STYLES - Starting point for customization
+// ============================================================================
+
+const DEFAULT_STYLES = [
+  {
+    id: "spoken",
+    name: "Spoken",
+    description: "Style: SPOKEN WORD - Focus on rhythmic flow and emphasis on words over melody. Use [Verse] tags for main sections. Consider [Rapped Verse] or [Spoken Verse] annotations for style hints. Write in COMPLETE SENTENCES - this is storytelling, not atmospheric fragments. Prioritize clarity and rhythm - let the words punch. Build momentum through repetition, cadence, and intensity. Think slam poetry energy - raw, powerful, unfiltered. Use alliteration, internal rhyme, and percussive consonants. Each line should express a complete thought or be part of a larger sentence."
+  },
+  {
+    id: "musical",
+    name: "Musical",
+    description: "Style: TRADITIONAL MUSICAL - Create clear verse-chorus structure: [Verse], [Chorus], [Bridge]. Focus on melody, rhyme, and singability. Make the chorus IRRESISTIBLY catchy and repeatable. Use varied verse content with consistent, powerful chorus. Consider [Pre-Chorus] to build dramatic tension before chorus. Write in complete sentences that tell a story - think Broadway narrative songs. Each line should express a full thought, not just evocative fragments. Think Broadway-level hooks - something people will be humming for days."
+  },
+  {
+    id: "meme",
+    name: "Meme",
+    description: "Style: MEME SONG (Humorous/Viral) - Make it catchy, funny, and internet-culture friendly. Use juvenile humor, absurdity, unexpected rhymes, or chaotic energy. Focus on the article content (not self-referential about being a meme). Include hooks that could go viral - be BOLD and memorable. Prefer complete sentences but you can break this rule for comedic effect. Use [Verse] and [Chorus] but keep energy high throughout. Embrace the weird, the silly, the absolutely unhinged. Think 'this could blow up on TikTok' levels of catchy chaos."
+  },
+  {
+    id: "cute",
+    name: "Cute",
+    description: "Style: CUTE & LIGHT-HEARTED - Write uplifting lyrics that make listeners smile. Focus on positive themes: love, friendship, happiness, warmth. Make it catchy and easy to sing along to. Use simple, clear language with gentle rhymes. Write in complete, conversational sentences - like you're talking to a friend. Consider [Happy Verse] or [Upbeat Chorus] annotations. Keep the tone wholesome and cheerful."
+  },
+  {
+    id: "informative",
+    name: "Informative",
+    description: "Style: EDUCATIONAL/INFORMATIVE - Convey maximum factual information from the article. Include key facts, statistics, and important details with precision. Prioritize accuracy and educational value. ABSOLUTELY use complete sentences - you're teaching, not evoking. Use clear, easy-to-understand language but make it engaging. Structure can be looser - focus on content delivery. Consider [Verse] tags for different topics or sections. Make it memorable and sticky - turn facts into earworms. Each line should communicate a complete idea or fact. Think 'Schoolhouse Rock' meets modern content - educational but addictive."
+  },
+  {
+    id: "pop",
+    name: "Pop",
+    description: "Style: POP/CATCHY HOOKS - Prioritize catchy, memorable hooks and singable melodies. YOU MAY use fragmentary phrases and incomplete sentences for impact. Focus on how words sound and flow together - phonetics matter. Create earworm choruses that stick in people's heads. Use [Verse], [Chorus], [Bridge] structure with emphasis on the chorus. Repetition and simple, punchy phrases are your friends. Think radio-friendly, mainstream appeal. It's okay to sacrifice complete thoughts for catchiness here."
+  }
+];
+
+// ============================================================================
+// STYLE MANAGEMENT - Load/Save Custom Styles
+// ============================================================================
+
+/**
+ * Get the default styles
+ */
+function getDefaultStyles() {
+  return JSON.parse(JSON.stringify(DEFAULT_STYLES)); // Deep clone
+}
+
+/**
+ * Load custom styles from storage, falling back to defaults
+ */
+async function loadCustomStyles() {
+  if (typeof browser === 'undefined') {
+    // Not in browser context (e.g., Node.js testing)
+    return getDefaultStyles();
+  }
+  
+  try {
+    const result = await browser.storage.local.get(['customStyles', 'stylesVersion']);
+    
+    if (result.customStyles && result.stylesVersion === 1) {
+      return result.customStyles;
+    }
+    
+    // No custom styles yet - initialize with defaults
+    const defaults = getDefaultStyles();
+    await browser.storage.local.set({
+      customStyles: defaults,
+      stylesVersion: 1
+    });
+    
+    return defaults;
+  } catch (error) {
+    console.error('Error loading custom styles:', error);
+    return getDefaultStyles();
+  }
+}
+
+/**
+ * Save custom styles to storage
+ */
+async function saveCustomStyles(styles) {
+  if (typeof browser === 'undefined') {
+    throw new Error('Cannot save styles outside browser context');
+  }
+  
+  // Validate we have exactly 6 styles
+  if (!Array.isArray(styles) || styles.length !== 6) {
+    throw new Error('Must have exactly 6 styles');
+  }
+  
+  // Validate each style
+  for (const style of styles) {
+    if (!style.id || !style.name || !style.description) {
+      throw new Error('Each style must have id, name, and description');
+    }
+  }
+  
+  await browser.storage.local.set({
+    customStyles: styles,
+    stylesVersion: 1
+  });
+}
+
+/**
+ * Reset styles to defaults
+ */
+async function resetStylesToDefaults() {
+  const defaults = getDefaultStyles();
+  await saveCustomStyles(defaults);
+  return defaults;
+}
 
 // ============================================================================
 // LYRICS GENERATION - System Prompt & Functions
@@ -50,22 +164,53 @@ Technical Requirements:
 - Use structural annotations: [Intro], [Verse], [Chorus], [Bridge], [Outro]
 - Keep under 3000 characters for Suno compatibility
 - Never mention living artists, celebrities, or trademarked names
-- Write lyrics that DISCOURSE - make arguments, tell stories, explain concepts`;
+- Write lyrics that DISCOURSE - make arguments, tell stories, explain concepts
+
+CREATIVE DIRECTION:
+You will receive a creative direction/style description from the user. Treat this as a creative brief from a producer or director. Interpret it intelligently:
+- Genre mentions (rock, jazz, Broadway, spoken word) → match that musical aesthetic
+- Mood descriptors (raw, catchy, gentle, chaotic) → prioritize that emotional quality
+- Structure requests (verse-chorus, storytelling, educational) → follow that format
+- Vocal style hints (singable, aggressive, intimate, conversational) → adjust delivery accordingly
+
+The creative direction guides the "what" and "how" - the technical requirements ensure quality and compatibility with Suno AI.`;
 
 // Legacy export for backward compatibility (uses lyrics prompt)
 const SYSTEM_PROMPT = LYRICS_SYSTEM_PROMPT;
 
 /**
  * Generate the lyrics prompt based on article text and song style
+ * @param {string} articleText - The article content to transform
+ * @param {object|string} songStyle - Style object with {id, name, description} or legacy string ID
  */
 function getLyricsPrompt(articleText, songStyle) {
-  // Special case: use article text directly as lyrics
-  if (songStyle === "straight") {
-    return null;
+  // Handle legacy string-based calls (backward compatibility)
+  if (typeof songStyle === 'string') {
+    // For "straight" style, return null (use article text directly)
+    if (songStyle === "straight") {
+      return null;
+    }
+    
+    // Try to find the style in defaults by ID
+    const styleObj = DEFAULT_STYLES.find(s => s.id === songStyle);
+    if (styleObj) {
+      songStyle = styleObj;
+    } else {
+      // Fallback - use default style
+      console.warn(`Unknown style "${songStyle}", using default`);
+      songStyle = DEFAULT_STYLES[1]; // Musical as fallback
+    }
   }
   
+  // Now songStyle should be an object with {id, name, description}
+  const styleDescription = songStyle.description || "Balanced article-to-song with clear structure and engaging delivery";
+  
   let prompt = `<task>
-Write song lyrics based on the article text below. Transform the content into singable, engaging lyrics.
+Write song lyrics based on the article text below, following this creative direction:
+
+"${styleDescription}"
+
+Transform the article content into lyrics that match this style direction.
 </task>
 
 <article_text>
@@ -73,131 +218,43 @@ ${articleText}
 </article_text>
 
 <requirements>
+CREATIVE DIRECTION: ${styleDescription}
+
+Interpret this direction creatively:
+- If it mentions genre (e.g., "Broadway", "Slam Poetry", "Pop"), match that musical aesthetic
+- If it mentions mood (e.g., "raw and powerful", "catchy", "gentle"), prioritize that feeling
+- If it mentions structure (e.g., "verse-chorus", "storytelling"), follow that format
+- If it mentions vocal style (e.g., "spoken word", "singable", "conversational"), adjust accordingly
+
+Think: "What would a songwriter do if given this creative brief?"
+
+TECHNICAL REQUIREMENTS (always apply):
+- Use Suno AI structural tags: [Intro], [Verse], [Chorus], [Bridge], [Outro]
+- Keep under 3000 characters for Suno compatibility
+- Write in COMPLETE SENTENCES with full grammatical structure (unless style explicitly requests fragments)
+- Make lyrics flow naturally when sung
 - Use as much of the article content as possible
 - Ignore headers, footers, and boilerplate text
-- Use Suno AI structural tags: [Intro], [Verse], [Chorus], [Bridge], [Outro]
-- Keep total length under 3000 characters
-- Make lyrics flow naturally when sung
 - Do NOT mention artist names, celebrities, or trademarks
 
-SYNTACTIC REQUIREMENT (unless style explicitly permits fragments):
-- Write in COMPLETE SENTENCES with full grammatical structure
+SYNTACTIC GUIDANCE (default, unless style overrides):
 - Each line should express a complete thought OR be part of a multi-line sentence using enjambment
 - Use subjects, verbs, objects - not just noun phrases and adjective clusters
 - Think "discursive lyricism" (making arguments, telling stories) not "impressionistic lyricism" (evoking moods)
 - Your lyrics should be able to stand alone as coherent prose if line breaks were removed
 
 PROSODIC TECHNIQUES for sentence-based lyrics:
-- ENJAMBMENT: Break sentences across lines at natural phrase boundaries, not just at periods
-- CAESURA: Use commas and internal punctuation to create mid-line pauses and breathing points
-- ANAPHORA: Repeat sentence structures or opening phrases for momentum ("I see X / I feel Y / I know Z")
+- ENJAMBMENT: Break sentences across lines at natural phrase boundaries
+- CAESURA: Use commas and internal punctuation to create mid-line pauses
+- ANAPHORA: Repeat sentence structures or opening phrases for momentum
 - PARALLELISM: Match syntactic structures across lines for musicality
-- POLYSYNDETON: Use multiple conjunctions for building intensity ("and...and...and")
-- ASYNDETON: Drop conjunctions for rapid-fire effect when appropriate
 
-AVOID these anti-patterns:
+AVOID these anti-patterns (unless style specifically requests them):
 - Fragment stacking: "Fire hearts / Wild nights / Burning souls"
 - Gerund clusters: "Running fast / Feeling free / Breaking chains"  
 - Orphaned adjectives: "Beautiful / Powerful / Unstoppable"
-- Imperative spam: "Feel it / See it / Be it"
-
-These patterns sound "lyric-y" but communicate nothing substantive.
+- These patterns sound "lyric-y" but communicate nothing substantive
 </requirements>
-
-<style_guidance>
-`;
-  
-  switch(songStyle) {
-    case "spoken":
-      prompt += `Style: SPOKEN WORD
-- Focus on rhythmic flow and emphasis on words over melody
-- Use [Verse] tags for main sections
-- Consider [Rapped Verse] or [Spoken Verse] annotations for style hints
-- Write in COMPLETE SENTENCES - this is storytelling, not atmospheric fragments
-- Prioritize clarity and rhythm - let the words punch
-- Build momentum through repetition, cadence, and intensity
-- Think slam poetry energy - raw, powerful, unfiltered
-- Use alliteration, internal rhyme, and percussive consonants
-- Each line should express a complete thought or be part of a larger sentence`;
-      break;
-      
-    case "musical":
-      prompt += `Style: TRADITIONAL MUSICAL
-- Create clear verse-chorus structure: [Verse], [Chorus], [Bridge]
-- Focus on melody, rhyme, and singability
-- Make the chorus IRRESISTIBLY catchy and repeatable
-- Use varied verse content with consistent, powerful chorus
-- Consider [Pre-Chorus] to build dramatic tension before chorus
-- Write in complete sentences that tell a story - think Broadway narrative songs
-- Each line should express a full thought, not just evocative fragments
-- Think Broadway-level hooks - something people will be humming for days`;
-      break;
-      
-    case "meme":
-      prompt += `Style: MEME SONG (Humorous/Viral)
-- Make it catchy, funny, and internet-culture friendly
-- Use juvenile humor, absurdity, unexpected rhymes, or chaotic energy
-- Focus on the article content (not self-referential about being a meme)
-- Include hooks that could go viral - be BOLD and memorable
-- Prefer complete sentences but you can break this rule for comedic effect
-- Use [Verse] and [Chorus] but keep energy high throughout
-- Embrace the weird, the silly, the absolutely unhinged
-- Think "this could blow up on TikTok" levels of catchy chaos`;
-      break;
-      
-    case "cute":
-      prompt += `Style: CUTE & LIGHT-HEARTED
-- Write uplifting lyrics that make listeners smile
-- Focus on positive themes: love, friendship, happiness, warmth
-- Make it catchy and easy to sing along to
-- Use simple, clear language with gentle rhymes
-- Write in complete, conversational sentences - like you're talking to a friend
-- Consider [Happy Verse] or [Upbeat Chorus] annotations
-- Keep the tone wholesome and cheerful`;
-      break;
-      
-    case "informative":
-      prompt += `Style: EDUCATIONAL/INFORMATIVE
-- Convey maximum factual information from the article
-- Include key facts, statistics, and important details with precision
-- Prioritize accuracy and educational value
-- ABSOLUTELY use complete sentences - you're teaching, not evoking
-- Use clear, easy-to-understand language but make it engaging
-- Structure can be looser - focus on content delivery
-- Consider [Verse] tags for different topics or sections
-- Make it memorable and sticky - turn facts into earworms
-- Each line should communicate a complete idea or fact
-- Think "Schoolhouse Rock" meets modern content - educational but addictive`;
-      break;
-      
-    case "pop":
-      prompt += `Style: POP/CATCHY HOOKS
-- Prioritize catchy, memorable hooks and singable melodies
-- YOU MAY use fragmentary phrases and incomplete sentences for impact
-- Focus on how words sound and flow together - phonetics matter
-- Create earworm choruses that stick in people's heads
-- Use [Verse], [Chorus], [Bridge] structure with emphasis on the chorus
-- Repetition and simple, punchy phrases are your friends
-- Think radio-friendly, mainstream appeal
-- It's okay to sacrifice complete thoughts for catchiness here`;
-      break;
-      
-    default:
-      prompt += `Style: BALANCED ARTICLE-TO-SONG
-- Capture key facts, ideas, emotions, and important passages
-- If a line from the article is particularly striking, try to include it verbatim
-- Balance educational content with musical appeal and creative flair
-- Make it both informative and emotionally resonant
-- Use standard structure: [Intro], [Verse], [Chorus], [Bridge], [Outro]
-- Write in COMPLETE SENTENCES that express full thoughts
-- Capture the "vibe" of the original piece - amplify it, make it vivid
-- Don't be afraid to use striking imagery and unexpected word choices
-- Make people FEEL the content, not just hear it
-- Think folk/storytelling tradition - lyrics that communicate ideas`;
-  }
-  
-  prompt += `
-</style_guidance>
 
 <output_format>
 Write only the lyrics with structural annotations. Example format:
@@ -384,7 +441,13 @@ if (typeof module !== 'undefined' && module.exports) {
     STYLE_SYSTEM_PROMPT,
     SYSTEM_PROMPT, // Legacy export (same as LYRICS_SYSTEM_PROMPT)
     getLyricsPrompt, 
-    getStyleTagsPrompt 
+    getStyleTagsPrompt,
+    // Style management functions
+    getDefaultStyles,
+    loadCustomStyles,
+    saveCustomStyles,
+    resetStylesToDefaults,
+    DEFAULT_STYLES
   };
 }
 
