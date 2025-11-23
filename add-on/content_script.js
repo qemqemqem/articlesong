@@ -4,7 +4,7 @@
 function playAudio(url) {
   // Check if an audio element already exists
   let existingAudio = document.querySelector('audio');
-  
+
   if (existingAudio) {
     // If it exists, update its source and play
     existingAudio.src = url;
@@ -35,11 +35,11 @@ function playAudio(url) {
 function getText() {
   console.log("Received request to get text content of the page");
   const documentClone = document.cloneNode(true);
-  
+
   // Remove tables and info boxes before parsing
   const tables = documentClone.getElementsByTagName('table');
   const infoBoxes = documentClone.querySelectorAll('.infobox, .info-box, .sidebar');
-  
+
   [...tables, ...infoBoxes].forEach(el => el.remove());
 
   const reader = new Readability(documentClone, {
@@ -47,7 +47,7 @@ function getText() {
     removeNodes: ['aside', 'figure', 'figcaption'],
     disableJSONLD: true
   });
-  
+
   const article = reader.parse();
 
   if (article && article.textContent) {

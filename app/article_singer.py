@@ -98,9 +98,9 @@ while True:
         the_style = receivedMessage.get('songType', 'default')
 
         # Get the API keys
-        openai_key = receivedMessage.get('openai_api_key', '')
+        anthropic_key = receivedMessage.get('anthropic_api_key', '')
         piapi_key = receivedMessage.get('piapi_key', '')
-        os.environ["OPENAI_API_KEY"] = openai_key
+        os.environ["ANTHROPIC_API_KEY"] = anthropic_key
         os.environ["PIAPI_KEY"] = piapi_key
 
         # Check if the_text is dict-like, if it can be parsed as a dict

@@ -1,5 +1,5 @@
 // Add these variables at the top of the file
-let OPENAI_API_KEY = '';
+let ANTHROPIC_API_KEY = '';
 let PIAPI_KEY = '';
 let port;
 
@@ -9,7 +9,7 @@ function connectToNativeApp() {
     port.disconnect();
   }
   port = browser.runtime.connectNative("article_singer");
-  
+
   port.onDisconnect.addListener((p) => {
     if (p.error) {
       console.error(`Disconnected due to an error: ${p.error.message}`);
@@ -38,8 +38,8 @@ function connectToNativeApp() {
 
 // Add this function to load the API keys
 function loadAPIKeys() {
-  browser.storage.sync.get(['openai_api_key', 'piapi_key']).then((result) => {
-    OPENAI_API_KEY = result.openai_api_key || '';
+  browser.storage.sync.get(['anthropic_api_key', 'piapi_key']).then((result) => {
+    ANTHROPIC_API_KEY = result.anthropic_api_key || '';
     PIAPI_KEY = result.piapi_key || '';
     console.log('API keys loaded');
   }, console.error);
@@ -304,10 +304,10 @@ async function sendContentToApp(content, songType = "default") {
     action: "process_text",
     text: JSON.stringify(content),
     songType: songType,
-    openai_api_key: OPENAI_API_KEY,
+    anthropic_api_key: ANTHROPIC_API_KEY,
     piapi_key: PIAPI_KEY
   };
-  
+
   if (port) {
     port.postMessage(payload);
   } else {
@@ -357,8 +357,8 @@ browser.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
 // Add a listener for storage changes to update the API keys
 browser.storage.onChanged.addListener((changes, area) => {
   if (area === 'sync') {
-    if (changes.openai_api_key) {
-      OPENAI_API_KEY = changes.openai_api_key.newValue;
+    if (changes.anthropic_api_key) {
+      ANTHROPIC_API_KEY = changes.anthropic_api_key.newValue;
     }
     if (changes.piapi_key) {
       PIAPI_KEY = changes.piapi_key.newValue;
