@@ -4,7 +4,9 @@
   "name": "Turn articles into songs!",
   "version": "1.0",
   "icons": {
-    "48": "icons/songify.png"
+    "48": "icons/songify-48.png",
+    "96": "icons/songify-96.png",
+    "128": "icons/songify-128.png"
   },
 
   "browser_specific_settings": {
