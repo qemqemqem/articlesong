@@ -490,6 +490,22 @@
       <div class="section-header">
         <span class="section-title">Create Song from Current Page</span>
       </div>
+      
+      <!-- Selection Info (shown when text is highlighted) -->
+      <div id="selection-info" style="display: none; background: #fffaf0; border: 2px solid #ed8936; border-radius: 8px; padding: 10px; margin-bottom: 12px;">
+        <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px;">
+          <div style="flex: 1;">
+            <div style="font-size: 13px; font-weight: 600; color: #c05621; margin-bottom: 4px;">
+              <span id="selection-word-count">0</span> words highlighted
+            </div>
+            <label style="display: flex; align-items: center; gap: 6px; font-size: 12px; color: #744210; cursor: pointer;">
+              <input type="checkbox" id="use-selection-checkbox" checked style="width: 16px; height: 16px; cursor: pointer;">
+              <span>Use highlighted text instead of full page</span>
+            </label>
+          </div>
+        </div>
+      </div>
+      
       <div id="create-buttons" style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
         <button class="btn btn-primary create-song-btn" data-style="musical">Musical</button>
         <button class="btn btn-primary create-song-btn" data-style="spoken">Spoken Word</button>

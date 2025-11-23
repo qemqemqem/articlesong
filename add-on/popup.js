@@ -23,6 +23,7 @@ const STATUS_CONFIG = {
 // Initialize popup
 async function init() {
   await loadData();
+  await checkSelection(); // Check for highlighted text
   renderUI();
   await updateNowPlaying(); // Initial check
   setupEventListeners();
@@ -35,6 +36,22 @@ async function loadData() {
   if (response) {
     requests = response.requests || [];
     settings = response.settings || {};
+  }
+}
+
+// Check for selected text in active tab
+async function checkSelection() {
+  try {
+    const tabs = await browser.tabs.query({active: true, currentWindow: true});
+    if (tabs && tabs.length > 0) {
+      const response = await browser.tabs.sendMessage(tabs[0].id, { action: 'getSelection' });
+      if (response && response.hasSelection) {
+        selectionInfo = response;
+        useSelection = true; // Auto-enable if text is selected
+      }
+    }
+  } catch (error) {
+    console.log('Could not check selection (content script may not be loaded):', error);
   }
 }
 
@@ -69,6 +86,24 @@ function renderUI() {
   
   // Render history
   renderRequestList(historyRequests, 'history-requests', false);
+  
+  // Update selection info UI
+  updateSelectionUI();
+}
+
+// Update selection info UI
+function updateSelectionUI() {
+  const selectionInfoEl = document.getElementById('selection-info');
+  const wordCountEl = document.getElementById('selection-word-count');
+  const checkbox = document.getElementById('use-selection-checkbox');
+  
+  if (selectionInfo.hasSelection) {
+    selectionInfoEl.style.display = 'block';
+    wordCountEl.textContent = selectionInfo.wordCount;
+    checkbox.checked = useSelection;
+  } else {
+    selectionInfoEl.style.display = 'none';
+  }
 }
 
 // Render a list of requests
@@ -530,13 +565,18 @@ async function createSong(style) {
     
     const tab = tabs[0];
     
+    // Determine if we should use selected text
+    const shouldUseSelection = useSelection && selectionInfo.hasSelection;
+    
     // Request song creation from background script
     const response = await browser.runtime.sendMessage({ 
       action: 'createSong',
       songStyle: style,
       tabId: tab.id,
       tabTitle: tab.title,
-      tabUrl: tab.url
+      tabUrl: tab.url,
+      useSelection: shouldUseSelection,
+      selectedText: shouldUseSelection ? selectionInfo.selectedText : null
     });
     
     // Check if request was successful
@@ -616,6 +656,11 @@ function setupEventListeners() {
   // Play/pause button
   document.getElementById('play-pause-btn').addEventListener('click', async () => {
     await togglePlayPause();
+  });
+  
+  // Use selection checkbox
+  document.getElementById('use-selection-checkbox').addEventListener('change', (e) => {
+    useSelection = e.target.checked;
   });
 }
 

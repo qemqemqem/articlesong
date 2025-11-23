@@ -900,13 +900,22 @@ browser.runtime.onMessage.addListener((message, sender, sendResponse) => {
     // Handle song creation from popup
     (async () => {
       try {
-        const content = await browser.tabs.sendMessage(message.tabId, {action: "getText"});
-        if (!content) {
-          throw new Error('Failed to get page content');
+        let articleText;
+        
+        // Use selected text if provided, otherwise get full page content
+        if (message.useSelection && message.selectedText) {
+          articleText = message.selectedText;
+          Logger.info(`Using ${message.selectedText.split(/\s+/).length} words of selected text`);
+        } else {
+          const content = await browser.tabs.sendMessage(message.tabId, {action: "getText"});
+          if (!content) {
+            throw new Error('Failed to get page content');
+          }
+          articleText = content.text;
         }
         
         const request = createRequest(
-          content.text, 
+          articleText, 
           message.tabUrl, 
           message.tabTitle, 
           message.songStyle, 
