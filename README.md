@@ -6,7 +6,7 @@ A browser extension that converts articles into songs using AI!
 
 1. Click the extension button on any webpage
 2. Extension extracts the article text
-3. Claude AI generates custom lyrics based on the content
+3. AI generates custom lyrics based on the content (Claude or SunoAPI)
 4. Suno AI creates a song from those lyrics
 5. Audio plays directly in your browser!
 
@@ -15,25 +15,31 @@ A browser extension that converts articles into songs using AI!
 **No Python backend needed!** Everything runs in the browser extension:
 
 ```
-Article Text → Claude API (lyrics) → SunoAPI.org (music) → Audio Player
+Article Text → Lyrics AI (Claude or SunoAPI) → SunoAPI.org (music) → Audio Player
 ```
 
 ## ⚙️ Setup
 
 ### 1. Get Your API Keys
 
-You need TWO API keys:
-
-**Anthropic API Key** (for Claude):
-- Go to https://console.anthropic.com/
-- Create an account and get your API key
-- Cost: ~$0.01-0.05 per song (lyrics generation)
+**Required:**
 
 **SunoAPI Key** (for music generation):
 - Go to https://sunoapi.org/pricing
 - Sign up and get your API key
-- Cost: ~$0.02 per song
-- **Total cost per song: $0.03-0.07** ✅
+- Cost: ~$0.02 per song (includes lyrics generation if used)
+
+**Optional:**
+
+**Anthropic API Key** (for Claude lyrics):
+- Go to https://console.anthropic.com/
+- Create an account and get your API key
+- Cost: ~$0.01-0.05 per song (lyrics generation)
+- **If not set, SunoAPI will generate lyrics instead**
+
+**Total cost per song:**
+- With SunoAPI only: ~$0.02 ✅
+- With Claude + SunoAPI: ~$0.03-0.07 ✅✅ (better quality lyrics)
 
 ### 2. Install the Extension
 
@@ -52,9 +58,11 @@ You need TWO API keys:
 ### 3. Configure API Keys
 
 1. Click the extension options (right-click extension icon → Options)
-2. Paste your Anthropic API key
-3. Paste your SunoAPI key
+2. Paste your SunoAPI key (required)
+3. Optionally paste your Anthropic API key (for better lyrics quality)
 4. Click "Save Settings"
+
+**Note:** If you don't set the Anthropic key, the extension will use SunoAPI's lyrics generation endpoint instead. This works well but Claude tends to produce more refined, article-specific lyrics.
 
 ## 🎤 Song Styles
 
@@ -89,7 +97,7 @@ old-python-backend/     # Archived Python version (for reference)
 ### Quick Start:
 1. Navigate to any article (Wikipedia, blog post, news site, etc.)
 2. Click the Article Song extension button
-3. Wait ~30-60 seconds
+3. Wait ~2-4 minutes (V5 takes longer but sounds amazing!)
 4. Song plays automatically!
 
 ### Custom Song Style:
@@ -102,7 +110,7 @@ old-python-backend/     # Archived Python version (for reference)
 
 | Version | Cost per Song | Setup Complexity | Shareability |
 |---------|---------------|------------------|--------------|
-| **v2.0 (Current)** | $0.03-0.07 | Low (2 API keys) | ✅ Easy |
+| **v2.0 (Current)** | $0.02-0.07 | Low (1-2 API keys) | ✅ Easy |
 | v1.0 (Python + PIAPI) | $15/mo + credits | High (Python + native messaging) | ❌ Hard |
 
 ## 🛠️ Development
@@ -118,10 +126,12 @@ old-python-backend/     # Archived Python version (for reference)
 1. Open Browser Console (Ctrl+Shift+J)
 2. All API calls and state changes are logged
 
-**Option 3: Log File**
-- Logs automatically save to `~/Downloads/article-song-debug.log`
-- Read with: `cat ~/Downloads/article-song-debug.log`
-- Or use: `./read-logs.sh`
+**Option 3: Log File (Development Mode)**
+- By default, logs stay in browser storage (no file downloads)
+- To enable automatic log file downloads during development:
+  - Edit `add-on/logger.js`
+  - Uncomment the marked sections in `init()` and `_addLog()`
+- Logs will then save to `~/Downloads/article-song-debug.log`
 
 ## 📝 What Changed from v1.0?
 
@@ -140,20 +150,21 @@ old-python-backend/     # Archived Python version (for reference)
 
 ## 🐛 Troubleshooting
 
-### "API key not configured"
-- Go to extension options and enter your API keys
+### "SunoAPI key not configured"
+- Go to extension options and enter your SunoAPI key (required)
 
 ### "Anthropic API error: 401"
 - Your Anthropic API key is invalid or expired
 - Get a new one from console.anthropic.com
+- Or leave it empty to use SunoAPI lyrics generation
 
 ### "Suno API error: 402"
 - You need to add credits to your SunoAPI account
 - Go to sunoapi.org and top up
 
 ### Song takes too long
-- Normal generation time is 30-60 seconds
-- If it times out (4 minutes), check your SunoAPI credits
+- Normal generation time is 2-4 minutes for V5 (high quality!)
+- If it times out (8 minutes), check your SunoAPI credits
 
 ### Audio doesn't play
 - Check browser console for errors
@@ -165,8 +176,9 @@ old-python-backend/     # Archived Python version (for reference)
 Friends can use this extension easily:
 1. Send them the `add-on/` folder (or GitHub link)
 2. They load it in Firefox
-3. They get their own API keys (5 minutes)
-4. Done!
+3. They get a SunoAPI key (required, 2 minutes)
+4. Optionally get Anthropic key for better lyrics (3 minutes)
+5. Done!
 
 No Python, no native messaging, no complex setup. Just works! ✨
 
@@ -177,8 +189,8 @@ The original Python backend is archived in `old-python-backend/` for reference. 
 ## 🏆 Credits
 
 - **Readability.js** - Mozilla's article extraction library
-- **Claude (Anthropic)** - Lyrics generation
-- **Suno AI** (via SunoAPI.org) - Music generation
+- **Claude (Anthropic)** - Lyrics generation (optional)
+- **Suno AI** (via SunoAPI.org) - Music generation & lyrics fallback
 
 ---
 

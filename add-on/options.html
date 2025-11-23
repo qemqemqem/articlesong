@@ -223,6 +223,40 @@
     .validation-message.show {
       opacity: 1;
     }
+    
+    .error-alert {
+      background: #fed7d7;
+      border: 2px solid #f56565;
+      border-radius: 12px;
+      padding: 16px;
+      margin-bottom: 24px;
+      animation: slideIn 0.3s ease-out;
+    }
+    
+    .error-alert-content strong {
+      display: block;
+      color: #742a2a;
+      font-size: 16px;
+      margin-bottom: 6px;
+    }
+    
+    .error-alert-content p {
+      color: #742a2a;
+      font-size: 14px;
+      line-height: 1.5;
+      margin: 0;
+    }
+    
+    @keyframes slideIn {
+      from {
+        opacity: 0;
+        transform: translateY(-10px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
   </style>
 </head>
 <body>
@@ -232,12 +266,20 @@
       <p>Configure your API keys to transform articles into songs</p>
     </div>
     
+    <!-- Error Alert (hidden by default) -->
+    <div id="error-alert" class="error-alert" style="display: none;">
+      <div class="error-alert-content">
+        <strong id="error-title"></strong>
+        <p id="error-message"></p>
+      </div>
+    </div>
+    
     <div class="api-section">
-      <h2>Anthropic API Key</h2>
-      <p>Used for generating song lyrics with Claude AI.</p>
-      <p><a href="https://console.anthropic.com/" target="_blank">Get your key from console.anthropic.com →</a></p>
+      <h2>Anthropic API Key <span style="color: #718096; font-size: 14px; font-weight: 400;">(Optional)</span></h2>
+      <p>Used for generating song lyrics with Claude AI. If not set, SunoAPI will generate lyrics.</p>
+      <p><a href="https://console.anthropic.com/" target="_blank">Get your key from console.anthropic.com</a></p>
       <div class="input-wrapper">
-        <input type="password" id="anthropic_api_key" placeholder="sk-ant-..." autocomplete="off">
+        <input type="password" id="anthropic_api_key" placeholder="sk-ant-... (leave empty to use SunoAPI lyrics)" autocomplete="off">
         <button type="button" class="toggle-password" data-target="anthropic_api_key">show</button>
       </div>
       <div class="validation-message" id="anthropic-validation"></div>
@@ -246,7 +288,7 @@
     <div class="api-section">
       <h2>SunoAPI Key</h2>
       <p>Used for generating music from lyrics.</p>
-      <p><a href="https://sunoapi.org/pricing" target="_blank">Get your key from sunoapi.org →</a></p>
+      <p><a href="https://sunoapi.org/pricing" target="_blank">Get your key from sunoapi.org</a></p>
       <div class="input-wrapper">
         <input type="password" id="suno_api_key" placeholder="Your SunoAPI key" autocomplete="off">
         <button type="button" class="toggle-password" data-target="suno_api_key">show</button>
@@ -277,6 +319,28 @@
       </div>
     </div>
     
+    <div class="api-section">
+      <h2>Suno Model</h2>
+      <p>Select which Suno AI model to use for music generation.</p>
+      
+      <div style="margin-top: 16px;">
+        <label for="suno_model" style="display: block; font-weight: 500; margin-bottom: 8px; font-size: 14px; color: #4a5568;">
+          Model Version
+        </label>
+        <select id="suno_model" 
+                style="width: 100%; padding: 10px 14px; font-size: 14px; border: 2px solid #cbd5e0; border-radius: 6px; background: white; cursor: pointer;">
+          <option value="V5">V5 - Latest model, studio-grade audio (recommended)</option>
+          <option value="V4.5PLUS">V4.5PLUS - Enhanced lyrics and sound quality</option>
+          <option value="V4.5">V4.5 - Robust for modern pop and rock</option>
+          <option value="V4">V4 - Previous generation model</option>
+          <option value="V3.5">V3.5 - Classic Suno sound</option>
+        </select>
+        <div style="font-size: 12px; color: #718096; margin-top: 6px;">
+          V5 offers the highest vocal quality and studio-grade audio.
+        </div>
+      </div>
+    </div>
+    
     <div class="button-group">
       <button id="save">Save Settings</button>
     </div>
@@ -284,7 +348,7 @@
     <div id="status" class="status"></div>
     
     <div class="footer">
-      Both keys are required for the extension to work properly
+      SunoAPI key is required. Anthropic key is optional (SunoAPI will generate lyrics if not set).
     </div>
   </div>
   

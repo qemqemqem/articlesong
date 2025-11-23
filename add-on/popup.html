@@ -67,6 +67,46 @@
       margin-bottom: 20px;
     }
     
+    #create-section {
+      background: white;
+      padding: 14px;
+      border-radius: 10px;
+      border: 2px solid #e2e8f0;
+    }
+    
+    #create-section .section-title {
+      margin-bottom: 12px;
+      display: block;
+    }
+    
+    .create-song-btn {
+      font-size: 13px;
+      padding: 10px 16px;
+    }
+    
+    .custom-style-input {
+      width: 100%;
+      padding: 10px 14px;
+      font-size: 13px;
+      border: 2px solid #cbd5e0;
+      border-radius: 6px;
+      background: white;
+      margin-bottom: 8px;
+      font-family: inherit;
+      transition: all 0.2s;
+    }
+    
+    .custom-style-input:focus {
+      outline: none;
+      border-color: #667eea;
+      box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+    }
+    
+    .custom-style-input::placeholder {
+      color: #a0aec0;
+      font-style: italic;
+    }
+    
     .section-header {
       display: flex;
       justify-content: space-between;
@@ -110,6 +150,11 @@
       background: #f0f4ff;
     }
     
+    .request-card.streaming {
+      border-color: #ed8936;
+      background: #fffaf0;
+    }
+    
     .request-card.complete {
       border-color: #48bb78;
     }
@@ -123,6 +168,11 @@
       border-color: #cbd5e0;
       background: #f7fafc;
       opacity: 0.8;
+    }
+    
+    .request-card.streaming {
+      border-color: #ed8936;
+      background: #fffaf0;
     }
     
     .request-title {
@@ -173,6 +223,102 @@
       display: flex;
       gap: 6px;
       flex-wrap: wrap;
+    }
+    
+    .copy-section {
+      display: flex;
+      gap: 6px;
+      margin-bottom: 8px;
+    }
+    
+    .copy-section .btn {
+      font-size: 11px;
+      padding: 5px 10px;
+      opacity: 0.9;
+    }
+    
+    .copy-section .btn:hover {
+      opacity: 1;
+    }
+    
+    .now-playing {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      padding: 12px 16px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-radius: 10px;
+      margin-bottom: 16px;
+      box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+    }
+    
+    .now-playing-info {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex: 1;
+      min-width: 0;
+    }
+    
+    .now-playing-icon {
+      font-size: 24px;
+      font-weight: bold;
+      opacity: 0.9;
+      animation: pulse 2s ease-in-out infinite;
+    }
+    
+    @keyframes pulse {
+      0%, 100% { opacity: 0.6; }
+      50% { opacity: 1; }
+    }
+    
+    .now-playing-text {
+      flex: 1;
+      min-width: 0;
+    }
+    
+    .now-playing-title {
+      font-size: 11px;
+      opacity: 0.8;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 2px;
+    }
+    
+    .now-playing-subtitle {
+      font-size: 14px;
+      font-weight: 600;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    
+    .media-control-btn {
+      background: rgba(255, 255, 255, 0.2);
+      border: 2px solid rgba(255, 255, 255, 0.4);
+      color: white;
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      cursor: pointer;
+      font-size: 16px;
+      font-weight: bold;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.2s;
+      flex-shrink: 0;
+    }
+    
+    .media-control-btn:hover {
+      background: rgba(255, 255, 255, 0.3);
+      border-color: rgba(255, 255, 255, 0.6);
+      transform: scale(1.05);
+    }
+    
+    .media-control-btn:active {
+      transform: scale(0.95);
     }
     
     .btn {
@@ -272,6 +418,10 @@
       animation: spin 0.8s linear infinite;
     }
     
+    .request-card.streaming .spinner {
+      border-top-color: #ed8936;
+    }
+    
     @keyframes spin {
       to { transform: rotate(360deg); }
     }
@@ -321,6 +471,46 @@
   </div>
   
   <div class="content">
+    <!-- Now Playing Controls (hidden by default) -->
+    <div class="now-playing" id="now-playing" style="display: none;">
+      <div class="now-playing-info">
+        <div class="now-playing-icon">~</div>
+        <div class="now-playing-text">
+          <div class="now-playing-title" id="now-playing-title">Now Playing</div>
+          <div class="now-playing-subtitle" id="now-playing-subtitle">Song title</div>
+        </div>
+      </div>
+      <button class="media-control-btn" id="play-pause-btn">
+        <span id="play-pause-icon">||</span>
+      </button>
+    </div>
+    
+    <!-- Create New Song Section -->
+    <div class="section" id="create-section">
+      <div class="section-header">
+        <span class="section-title">Create Song from Current Page</span>
+      </div>
+      <div id="create-buttons" style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+        <button class="btn btn-primary create-song-btn" data-style="musical">Musical</button>
+        <button class="btn btn-primary create-song-btn" data-style="spoken">Spoken Word</button>
+        <button class="btn btn-primary create-song-btn" data-style="meme">Meme</button>
+        <button class="btn btn-primary create-song-btn" data-style="cute">Cute</button>
+        <button class="btn btn-primary create-song-btn" data-style="informative">Informative</button>
+        <button class="btn btn-primary create-song-btn" data-style="pop">Pop</button>
+        <button class="btn btn-secondary create-song-btn" data-style="straight" style="grid-column: 1 / -1;">Use Page Text as Lyrics</button>
+      </div>
+      
+      <div style="margin-top: 12px; padding-top: 12px; border-top: 2px solid #e2e8f0;">
+        <input 
+          type="text" 
+          id="custom-style-input" 
+          placeholder="style guidance" 
+          class="custom-style-input"
+        >
+        <button class="btn btn-primary" id="custom-style-btn" style="width: 100%; font-size: 13px; padding: 10px 16px;">Create with Custom Style</button>
+      </div>
+    </div>
+    
     <!-- Active Requests Section -->
     <div class="section" id="active-section">
       <div class="section-header">

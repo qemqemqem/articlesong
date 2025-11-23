@@ -1,6 +1,7 @@
 // Validation helpers
 function validateAnthropicKey(key) {
-  if (!key) return { valid: false, message: 'API key is required' };
+  // Anthropic key is now optional - if empty, that's valid
+  if (!key) return { valid: true, message: '' };
   if (!key.startsWith('sk-ant-')) return { valid: false, message: 'Key should start with sk-ant-' };
   if (key.length < 20) return { valid: false, message: 'Key appears too short' };
   return { valid: true, message: '' };
@@ -56,6 +57,7 @@ function saveOptions(e) {
   const sunoKey = document.getElementById('suno_api_key').value.trim();
   const autoDownload = document.getElementById('auto_download').checked;
   const downloadDirectory = document.getElementById('download_directory').value.trim();
+  const sunoModel = document.getElementById('suno_model').value;
   
   // Validate
   const anthropicValidation = validateAnthropicKey(anthropicKey);
@@ -65,12 +67,14 @@ function saveOptions(e) {
   hideValidationMessage('anthropic_api_key');
   hideValidationMessage('suno_api_key');
   
-  if (!anthropicValidation.valid) {
+  // Anthropic is optional, but if provided must be valid
+  if (anthropicKey && !anthropicValidation.valid) {
     showValidationMessage('anthropic_api_key', anthropicValidation.message);
     showStatus('Please fix validation errors', false);
     return;
   }
   
+  // Suno is required
   if (!sunoValidation.valid) {
     showValidationMessage('suno_api_key', sunoValidation.message);
     showStatus('Please fix validation errors', false);
@@ -94,6 +98,7 @@ function saveOptions(e) {
     const settings = result.settings || {};
     settings.autoDownload = autoDownload;
     settings.downloadDirectory = downloadDirectory;
+    settings.sunoModel = sunoModel;
     return browser.storage.local.set({ settings });
   });
   
@@ -117,17 +122,63 @@ function restoreOptions() {
   });
   
   // Load settings from local storage
-  const localPromise = browser.storage.local.get('settings').then((result) => {
+  const localPromise = browser.storage.local.get(['settings', 'settingsError']).then((result) => {
     const settings = result.settings || {};
     document.getElementById('auto_download').checked = settings.autoDownload || false;
     // Show actual value - could be empty string, undefined (use default), or a custom value
     document.getElementById('download_directory').value = 
       settings.downloadDirectory !== undefined ? settings.downloadDirectory : 'ArticleSongs';
+    // Set model - default to V5 if not set
+    document.getElementById('suno_model').value = settings.sunoModel || 'V5';
+    
+    // Check for error message from background script
+    if (result.settingsError) {
+      showErrorAlert(result.settingsError);
+      // Clear the error after showing it
+      browser.storage.local.remove('settingsError');
+    }
   });
   
   Promise.all([syncPromise, localPromise]).then(() => {
     updateInputVisuals();
   }).catch(console.error);
+}
+
+function showErrorAlert(errorType) {
+  const errorAlert = document.getElementById('error-alert');
+  const errorTitle = document.getElementById('error-title');
+  const errorMessage = document.getElementById('error-message');
+  
+  const errorMessages = {
+    'anthropic_invalid': {
+      title: 'Invalid Anthropic API Key',
+      message: 'The Anthropic API key you entered appears to be invalid or has been revoked. Please check your key and try again.'
+    },
+    'suno_missing': {
+      title: 'SunoAPI Key Required',
+      message: 'You need to enter your SunoAPI key below to generate music. Get your key from sunoapi.org'
+    },
+    'suno_invalid': {
+      title: 'Invalid SunoAPI Key',
+      message: 'The SunoAPI key you entered appears to be invalid or has been revoked. Please check your key and try again.'
+    }
+  };
+  
+  const error = errorMessages[errorType];
+  if (error) {
+    errorTitle.textContent = error.title;
+    errorMessage.textContent = error.message;
+    errorAlert.style.display = 'block';
+    
+    // Focus the appropriate input field
+    if (errorType.startsWith('anthropic')) {
+      document.getElementById('anthropic_api_key').focus();
+      document.getElementById('anthropic_api_key').select();
+    } else if (errorType.startsWith('suno')) {
+      document.getElementById('suno_api_key').focus();
+      document.getElementById('suno_api_key').select();
+    }
+  }
 }
 
 function setupPasswordToggles() {

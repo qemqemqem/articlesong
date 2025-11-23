@@ -1,7 +1,13 @@
 /**
  * Logging System for Article Song
- * Logs to both console AND persistent storage
- * Logs can be viewed in debug.html or exported to file
+ * - Logs to console for real-time debugging
+ * - Stores logs in browser.storage.local for persistence
+ * - Logs can be viewed in debug.html or manually exported to file
+ * 
+ * DEVELOPMENT MODE:
+ * - Automatic file downloads are DISABLED by default (production mode)
+ * - To enable auto-downloads during development, uncomment the marked sections
+ *   in init() and _addLog() methods
  */
 
 const Logger = {
@@ -24,8 +30,12 @@ const Logger = {
       console.error('Failed to load logs from storage:', e);
     }
     
-    // Start auto-saving to file
-    this.startAutoSave();
+    // ========================================================================
+    // 🔧 DEVELOPMENT MODE: Uncomment the line below to enable automatic log 
+    //    file downloads every 10 seconds. This is useful for debugging but
+    //    should be DISABLED for production to avoid constant file writes.
+    // ========================================================================
+    // this.startAutoSave();
   },
   
   /**
@@ -92,10 +102,13 @@ const Logger = {
     // Save to storage (async, don't wait)
     this._saveToStorage();
     
-    // For important events (errors, success), write to file immediately
-    if (level === 'error' || level === 'success') {
-      this.writeToFile();
-    }
+    // ========================================================================
+    // 🔧 DEVELOPMENT MODE: Uncomment below to write logs to file immediately
+    //    on errors/success. Useful for debugging but disabled for production.
+    // ========================================================================
+    // if (level === 'error' || level === 'success') {
+    //   this.writeToFile();
+    // }
     
     // Format for console
     const emoji = {

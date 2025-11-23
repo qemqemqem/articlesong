@@ -26,12 +26,13 @@ let settings = {
   downloadDirectory: 'ArticleSongs',
   maxHistoryItems: 20,
   autoPlayOnComplete: true,
-  showNotifications: true
+  showNotifications: true,
+  sunoModel: 'V5'
 };
 
-const EXPECTED_DURATION = 60; // seconds
+const EXPECTED_DURATION = 180; // seconds (3 min typical for V5)
 
-Logger.info('Article Song extension loaded! [VERSION: 2024-11-23-03:35 - RE-FIXED CALLBACK + PARSING]');
+Logger.info('Article Song extension loaded! [VERSION: 2024-11-23-05:07 - PRODUCTION MODE]');
 
 // ============================================================================
 // STORAGE & INITIALIZATION
@@ -104,6 +105,7 @@ function createRequest(articleText, articleUrl, articleTitle, songStyle, tabId) 
     audioUrl: null,
     lyrics: null,
     styleTags: null,
+    lyricsProvider: null, // Track which service generated lyrics ('anthropic' or 'suno')
     error: null,
     sunoTaskId: null,
     tabId
@@ -163,15 +165,223 @@ function broadcastUpdate() {
 }
 
 // ============================================================================
+// SUNO API - Generate Lyrics
+// ============================================================================
+
+async function generateLyricsWithSuno(request, abortController) {
+  Logger.info(`Generating ${request.songStyle} lyrics with SunoAPI for ${request.id}...`);
+  
+  if (!SUNO_API_KEY) {
+    openSettingsWithError('suno_missing');
+    throw new Error('SunoAPI key not configured. Please set it in extension options.');
+  }
+  
+  // Mark that we're using SunoAPI for lyrics
+  updateRequest(request.id, { lyricsProvider: 'suno' });
+  
+  // Special case: "straight" means use article text directly
+  if (request.songStyle === "straight") {
+    return request.articleText;
+  }
+  
+  // Build prompt for SunoAPI lyrics generation
+  const prompt = buildSunoLyricsPrompt(request.articleText, request.songStyle);
+  
+  const response = await fetch('https://api.sunoapi.org/api/v1/lyrics', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${SUNO_API_KEY}`,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      callBackUrl: "https://webhook.site/unique-uuid-here",
+      prompt: prompt.substring(0, 200) // Max 200 words
+    }),
+    signal: abortController.signal
+  });
+  
+  if (!response.ok) {
+    const error = await response.text();
+    Logger.error(`SunoAPI lyrics HTTP error: ${response.status}`, { error });
+    if (response.status === 401 || response.status === 403) {
+      openSettingsWithError('suno_invalid');
+    }
+    throw new Error(`SunoAPI lyrics error: ${response.status} - ${error}`);
+  }
+  
+  const data = await response.json();
+  Logger.debug('SunoAPI lyrics response', data);
+  
+  if (!data || data.code !== 200) {
+    Logger.error('SunoAPI lyrics returned error', data);
+    throw new Error(`SunoAPI lyrics error: ${data?.msg || 'Unknown error'}`);
+  }
+  
+  if (!data.data || !data.data.taskId) {
+    Logger.error('SunoAPI lyrics missing taskId', data);
+    throw new Error(`SunoAPI lyrics returned unexpected response structure`);
+  }
+  
+  const taskId = data.data.taskId;
+  Logger.success(`SunoAPI lyrics task started: ${taskId}`);
+  
+  // Wait for lyrics to be ready
+  const lyrics = await waitForSunoLyrics(taskId, abortController);
+  
+  Logger.success(`Lyrics generated with SunoAPI for ${request.id} (${lyrics.length} chars)`);
+  return lyrics;
+}
+
+async function pollSunoLyricsStatus(taskId, abortController) {
+  Logger.debug(`Checking SunoAPI lyrics status for ${taskId}...`);
+  
+  const response = await fetch(
+    `https://api.sunoapi.org/api/v1/lyrics/record-info?taskId=${taskId}`,
+    {
+      headers: {
+        'Authorization': `Bearer ${SUNO_API_KEY}`
+      },
+      signal: abortController.signal
+    }
+  );
+  
+  if (!response.ok) {
+    const error = await response.text();
+    Logger.error(`SunoAPI lyrics status check HTTP error: ${response.status}`, { error });
+    throw new Error(`SunoAPI lyrics status check failed: ${response.status}`);
+  }
+  
+  const data = await response.json();
+  
+  if (!data || data.code !== 200) {
+    Logger.error('SunoAPI lyrics status check returned error', data);
+    throw new Error(`SunoAPI lyrics status error: ${data?.msg || 'Unknown error'}`);
+  }
+  
+  return data.data;
+}
+
+async function waitForSunoLyrics(taskId, abortController) {
+  const maxAttempts = 40; // 2 minutes max (40 * 3s) - lyrics generate faster
+  let attempts = 0;
+  
+  return new Promise((resolve, reject) => {
+    const pollInterval = setInterval(async () => {
+      try {
+        if (abortController.signal.aborted) {
+          clearInterval(pollInterval);
+          reject(new Error('Cancelled'));
+          return;
+        }
+        
+        const statusData = await pollSunoLyricsStatus(taskId, abortController);
+        
+        Logger.debug(`Lyrics poll attempt ${attempts + 1}/${maxAttempts}`, { 
+          status: statusData.status,
+          taskId: statusData.taskId,
+          hasResponse: !!statusData.response,
+          hasData: !!(statusData.response && statusData.response.data)
+        });
+        
+        if (statusData.status === 'SUCCESS' && statusData.response && statusData.response.data) {
+          clearInterval(pollInterval);
+          
+          // SunoAPI returns multiple lyric variations - pick the first one
+          const lyricsVariations = statusData.response.data;
+          
+          if (!lyricsVariations || lyricsVariations.length === 0) {
+            reject(new Error('SunoAPI returned SUCCESS but no lyrics data'));
+            return;
+          }
+          
+          Logger.success(`SunoAPI lyrics ready! Got ${lyricsVariations.length} variations`);
+          
+          // Use the first variation
+          const selectedLyrics = lyricsVariations[0];
+          resolve(selectedLyrics.text);
+          return;
+        } else if (statusData.status === 'FAILED') {
+          clearInterval(pollInterval);
+          Logger.error('SunoAPI lyrics generation failed', { statusData });
+          reject(new Error('SunoAPI lyrics generation failed'));
+          return;
+        }
+        
+        attempts++;
+        
+        if (attempts >= maxAttempts) {
+          clearInterval(pollInterval);
+          reject(new Error('SunoAPI lyrics generation timeout (2 minutes)'));
+        }
+        
+      } catch (error) {
+        clearInterval(pollInterval);
+        reject(error);
+      }
+    }, 3000);
+  });
+}
+
+function buildSunoLyricsPrompt(articleText, songStyle) {
+  // Build a concise prompt for SunoAPI lyrics generation
+  let prompt = `A song about: ${articleText.substring(0, 300)}. `;
+  
+  switch(songStyle) {
+    case "spoken":
+      prompt += "Style: Spoken word, rhythmic, poetry slam.";
+      break;
+    case "musical":
+      prompt += "Style: Traditional musical with verse-chorus structure.";
+      break;
+    case "meme":
+      prompt += "Style: Funny, catchy, internet-culture friendly.";
+      break;
+    case "cute":
+      prompt += "Style: Cute, uplifting, cheerful.";
+      break;
+    case "informative":
+      prompt += "Style: Educational, factual, clear.";
+      break;
+    default:
+      prompt += "Style: Balanced article-to-song.";
+  }
+  
+  return prompt;
+}
+
+function getFallbackStyleTags(songStyle) {
+  // Simple fallback style tags when Anthropic is not available
+  switch(songStyle) {
+    case "spoken":
+      return "Spoken Word, Hip-Hop, Rhythmic Storytelling, 90 BPM, Clear Delivery";
+    case "musical":
+      return "Pop Musical, Upbeat, Catchy, 120 BPM, Piano, Bright Vocals";
+    case "meme":
+      return "Comedy Rap, Novelty Pop, Energetic, 128 BPM, Quirky Synths";
+    case "cute":
+      return "Indie Pop, Dreamy, Upbeat, Warm Synths, Sweet Vocals";
+    case "informative":
+      return "Educational Folk, Clear, 95 BPM, Acoustic Guitar, Narrative";
+    default:
+      return "Indie Pop, Melodic, 110 BPM, Balanced, Contemporary";
+  }
+}
+
+// ============================================================================
 // CLAUDE API - Generate Lyrics
 // ============================================================================
 
 async function generateLyrics(request, abortController) {
   Logger.info(`Generating ${request.songStyle} lyrics for ${request.id}...`);
   
+  // Check if Anthropic key is available, otherwise use SunoAPI
   if (!ANTHROPIC_API_KEY) {
-    throw new Error('Anthropic API key not configured. Please set it in extension options.');
+    Logger.info('No Anthropic key, falling back to SunoAPI lyrics generation');
+    return await generateLyricsWithSuno(request, abortController);
   }
+  
+  // Mark that we're using Anthropic for lyrics
+  updateRequest(request.id, { lyricsProvider: 'anthropic' });
   
   // Special case: "straight" means use article text directly
   if (request.songStyle === "straight") {
@@ -192,7 +402,7 @@ async function generateLyrics(request, abortController) {
       model: 'claude-sonnet-4-5-20250929',
       max_tokens: 700,
       temperature: 0.2,
-      system: SYSTEM_PROMPT,
+      system: LYRICS_SYSTEM_PROMPT,
       messages: [{
         role: 'user',
         content: prompt
@@ -203,6 +413,9 @@ async function generateLyrics(request, abortController) {
   
   if (!response.ok) {
     const error = await response.text();
+    if (response.status === 401 || response.status === 403) {
+      openSettingsWithError('anthropic_invalid');
+    }
     throw new Error(`Claude API error: ${response.status} - ${error}`);
   }
   
@@ -216,8 +429,10 @@ async function generateLyrics(request, abortController) {
 async function generateStyleTags(lyrics, songStyle, abortController) {
   Logger.info(`Generating style tags for ${songStyle}...`);
   
+  // If no Anthropic key, use simple fallback style tags
   if (!ANTHROPIC_API_KEY) {
-    throw new Error('Anthropic API key not configured');
+    Logger.info('No Anthropic key, using fallback style tags');
+    return getFallbackStyleTags(songStyle);
   }
   
   const prompt = getStyleTagsPrompt(lyrics, songStyle);
@@ -234,7 +449,7 @@ async function generateStyleTags(lyrics, songStyle, abortController) {
       model: 'claude-sonnet-4-5-20250929',
       max_tokens: 50,
       temperature: 0.2,
-      system: SYSTEM_PROMPT,
+      system: STYLE_SYSTEM_PROMPT,
       messages: [{
         role: 'user',
         content: prompt
@@ -245,6 +460,9 @@ async function generateStyleTags(lyrics, songStyle, abortController) {
   
   if (!response.ok) {
     const error = await response.text();
+    if (response.status === 401 || response.status === 403) {
+      openSettingsWithError('anthropic_invalid');
+    }
     throw new Error(`Claude API error: ${response.status} - ${error}`);
   }
   
@@ -261,9 +479,11 @@ async function generateStyleTags(lyrics, songStyle, abortController) {
 // ============================================================================
 
 async function generateMusic(request, abortController) {
-  Logger.info(`Sending to Suno API...`, { requestId: request.id });
+  const model = settings.sunoModel || 'V5';
+  Logger.info(`Sending to Suno API...`, { requestId: request.id, model });
   
   if (!SUNO_API_KEY) {
+    openSettingsWithError('suno_missing');
     throw new Error('SunoAPI key not configured. Please set it in extension options.');
   }
   
@@ -271,7 +491,7 @@ async function generateMusic(request, abortController) {
     callBackUrl: "https://webhook.site/unique-uuid-here",
     customMode: true,
     instrumental: false,
-    model: 'V5',
+    model: model,
     prompt: request.lyrics.substring(0, 5000),
     style: request.styleTags.substring(0, 1000),
     title: request.articleTitle.substring(0, 80)
@@ -292,6 +512,9 @@ async function generateMusic(request, abortController) {
   if (!response.ok) {
     const error = await response.text();
     Logger.error(`Suno API HTTP error: ${response.status}`, { error });
+    if (response.status === 401 || response.status === 403) {
+      openSettingsWithError('suno_invalid');
+    }
     throw new Error(`Suno API error: ${response.status} - ${error}`);
   }
   
@@ -343,8 +566,9 @@ async function pollSunoStatus(taskId, abortController) {
 }
 
 async function waitForSunoCompletion(request, abortController) {
-  const maxAttempts = 48; // 4 minutes max (48 * 5s)
+  const maxAttempts = 96; // 8 minutes max (96 * 5s) - V5 can take longer
   let attempts = 0;
+  let streamingUrlDelivered = false;
   
   return new Promise((resolve, reject) => {
     const pollInterval = setInterval(async () => {
@@ -360,26 +584,115 @@ async function waitForSunoCompletion(request, abortController) {
         
         Logger.debug(`Poll attempt ${attempts + 1}/${maxAttempts}`, { 
           status: statusData.status,
-          taskId: statusData.taskId
+          taskId: statusData.taskId,
+          hasResponse: !!statusData.response,
+          hasSunoData: !!(statusData.response && statusData.response.sunoData),
+          sunoDataLength: statusData.response?.sunoData?.length || 0
         });
         
-        if (statusData.status === 'SUCCESS') {
-          clearInterval(pollInterval);
+        // Check if we have any audio data available (streaming or complete)
+        if (statusData.response && statusData.response.sunoData && statusData.response.sunoData[0]) {
+          const song = statusData.response.sunoData[0];
+          
+          Logger.debug(`Audio data available:`, {
+            hasAudioUrl: !!song.audioUrl,
+            audioUrl: song.audioUrl ? song.audioUrl.substring(0, 50) + '...' : null,
+            streamingDelivered: streamingUrlDelivered
+          });
+          
+          // STREAMING: Check if streaming URL is available (ready in ~30-40 seconds)
+          if (!streamingUrlDelivered && song.audioUrl) {
+            Logger.success(`🎵 Streaming URL ready! Starting playback...`, { 
+              audioUrl: song.audioUrl,
+              title: song.title 
+            });
+            
+            streamingUrlDelivered = true;
+            
+            // Start playback immediately with streaming URL
+            updateRequest(request.id, {
+              status: 'PLAYING',
+              audioUrl: song.audioUrl,
+              imageUrl: song.imageUrl,
+              title: song.title,
+              lyrics: song.prompt,
+              isStreaming: true,
+              progress: { elapsed: 0, estimated: 0 }
+            });
+            
+            // Send to content script right away
+            forwardAudioUrlToContentScript(request.tabId, song.audioUrl, request.id).catch(err => {
+              Logger.warn('Could not forward to content script', err);
+            });
+            
+            // Show notification if enabled
+            if (settings.showNotifications) {
+              browser.notifications.create({
+                type: 'basic',
+                iconUrl: browser.runtime.getURL('icons/songify.png'),
+                title: 'Song Streaming!',
+                message: `"${song.title || request.articleTitle}" is now playing`
+              });
+            }
+            
+            updateBadge();
+            
+            // SunoAPI.org provides full quality in audioUrl, no separate download URL
+            Logger.info('Audio ready, continuing to poll for SUCCESS status...');
+          }
+        }
+        
+        // Check for success - but only if we have an audio URL
+        if (statusData.status === 'SUCCESS' || statusData.status === 'TEXT_SUCCESS') {
           
           if (!statusData.response || !statusData.response.sunoData || !statusData.response.sunoData[0]) {
             Logger.error('Suno SUCCESS but missing data', { statusData });
             reject(new Error('Suno returned SUCCESS but no audio data found'));
+            clearInterval(pollInterval);
             return;
           }
           
           const song = statusData.response.sunoData[0];
+          
+          // TEXT_SUCCESS can appear before audio is ready - check if we have URL
+          if (!song.audioUrl || song.audioUrl.trim() === '') {
+            Logger.debug(`Status ${statusData.status} but no audio URL yet, continuing to poll...`);
+            attempts++;
+            if (attempts >= maxAttempts) {
+              clearInterval(pollInterval);
+              reject(new Error('Suno generation timeout (8 minutes)'));
+            }
+            return; // Keep polling
+          }
+          
+          clearInterval(pollInterval);
           Logger.success(`Song ready: ${song.title}`, { audioUrl: song.audioUrl });
+          
+          // If we never got a streaming URL, deliver it now
+          if (!streamingUrlDelivered) {
+            updateRequest(request.id, {
+              status: 'PLAYING',
+              audioUrl: song.audioUrl,
+              imageUrl: song.imageUrl,
+              title: song.title,
+              lyrics: song.prompt,
+              isStreaming: false, // Full quality ready
+              progress: { elapsed: 0, estimated: 0 }
+            });
+          } else {
+            // We already started streaming, now mark as complete
+            updateRequest(request.id, {
+              isStreaming: false // Full quality ready
+            });
+          }
+          
           resolve({
             audioUrl: song.audioUrl,
             imageUrl: song.imageUrl,
             title: song.title,
             lyrics: song.prompt
           });
+          return;
         } else if (statusData.status === 'FAILED') {
           clearInterval(pollInterval);
           Logger.error('Suno generation failed', { statusData });
@@ -390,7 +703,7 @@ async function waitForSunoCompletion(request, abortController) {
         
         if (attempts >= maxAttempts) {
           clearInterval(pollInterval);
-          reject(new Error('Suno generation timeout (4 minutes)'));
+          reject(new Error('Suno generation timeout (8 minutes)'));
         }
         
         // Update progress
@@ -446,15 +759,11 @@ async function generateSongFromArticle(request) {
     const taskId = await generateMusic(request, abortController);
     updateRequest(request.id, { sunoTaskId: taskId });
     
-    // Step 4: Poll for completion
+    // Step 4: Poll for completion (will start streaming as soon as available)
     const result = await waitForSunoCompletion(request, abortController);
     
-    // Success!
-    updateRequest(request.id, {
-      status: 'PLAYING',
-      audioUrl: result.audioUrl,
-      progress: { elapsed: 0, estimated: 0 }
-    });
+    // Note: waitForSunoCompletion already set status to PLAYING when streaming URL became available
+    // We're here when download URL is ready (or SUCCESS status received)
     
     Logger.success('SONG GENERATION COMPLETE!', {
       requestId: request.id,
@@ -464,11 +773,11 @@ async function generateSongFromArticle(request) {
     
     // Auto-download if enabled
     if (settings.autoDownload) {
+      Logger.info('Auto-download enabled, downloading song...', { 
+        directory: settings.downloadDirectory 
+      });
       downloadAudio(request.id);
     }
-    
-    // Send to content script
-    await forwardAudioUrlToContentScript(request.tabId, result.audioUrl, request.id);
     
     updateBadge();
     
@@ -566,6 +875,17 @@ function updateBadge() {
 }
 
 // ============================================================================
+// SETTINGS ERROR HANDLING
+// ============================================================================
+
+function openSettingsWithError(errorType) {
+  // Store error in local storage so settings page can display it
+  browser.storage.local.set({ settingsError: errorType }).then(() => {
+    browser.runtime.openOptionsPage();
+  });
+}
+
+// ============================================================================
 // MESSAGE HANDLERS (from popup and content script)
 // ============================================================================
 
@@ -574,6 +894,33 @@ browser.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message.action === 'getRequests') {
     sendResponse({ requests: allRequests, settings });
     return true;
+  }
+  
+  if (message.action === 'createSong') {
+    // Handle song creation from popup
+    (async () => {
+      try {
+        const content = await browser.tabs.sendMessage(message.tabId, {action: "getText"});
+        if (!content) {
+          throw new Error('Failed to get page content');
+        }
+        
+        const request = createRequest(
+          content.text, 
+          message.tabUrl, 
+          message.tabTitle, 
+          message.songStyle, 
+          message.tabId
+        );
+        
+        generateSongFromArticle(request);
+        sendResponse({ success: true, requestId: request.id });
+      } catch (error) {
+        Logger.error('Failed to create song from popup', error);
+        sendResponse({ success: false, error: error.message });
+      }
+    })();
+    return true; // Keep channel open for async response
   }
   
   if (message.action === 'cancelRequest') {
@@ -650,6 +997,77 @@ browser.runtime.onMessage.addListener((message, sender, sendResponse) => {
     return true;
   }
   
+  if (message.action === 'stopPlaying') {
+    const request = getRequest(message.requestId);
+    if (request && request.status === 'PLAYING') {
+      updateRequest(message.requestId, {
+        status: 'COMPLETE',
+        timestamps: {
+          ...request.timestamps,
+          completed: Date.now()
+        }
+      });
+      
+      // Try to stop audio in content script
+      if (request.tabId) {
+        browser.tabs.sendMessage(request.tabId, {
+          action: 'stopAudio',
+          requestId: message.requestId
+        }).catch(() => {
+          // Tab might be closed, ignore error
+        });
+      }
+      
+      updateBadge();
+    }
+    sendResponse({ success: true });
+    return true;
+  }
+  
+  if (message.action === 'togglePlayPause') {
+    const request = getRequest(message.requestId);
+    Logger.debug('Toggle play/pause request', { requestId: message.requestId, hasRequest: !!request, status: request?.status, tabId: request?.tabId });
+    
+    if (request && request.status === 'PLAYING' && request.tabId) {
+      // Forward to content script
+      Logger.debug('Forwarding to content script', { tabId: request.tabId });
+      browser.tabs.sendMessage(request.tabId, {
+        action: 'togglePlayPause',
+        requestId: message.requestId
+      }).then((response) => {
+        Logger.debug('Content script response', response);
+        sendResponse(response);
+      }).catch((error) => {
+        Logger.error('Failed to toggle playback', error);
+        sendResponse({ success: false, error: error.message });
+      });
+      return true; // Keep channel open
+    }
+    Logger.error('Cannot toggle playback - invalid state', { hasRequest: !!request, status: request?.status, hasTabId: !!request?.tabId });
+    sendResponse({ success: false, error: 'Request not playing or tab not found' });
+    return true;
+  }
+  
+  if (message.action === 'validatePlaying') {
+    const request = getRequest(message.requestId);
+    if (request && request.status === 'PLAYING' && request.tabId) {
+      // Check if tab still exists and audio is playing
+      browser.tabs.sendMessage(request.tabId, {
+        action: 'checkAudioStatus',
+        requestId: message.requestId
+      }).then((response) => {
+        sendResponse(response);
+      }).catch((error) => {
+        Logger.error('Failed to validate playing status', error);
+        // Tab probably closed or refreshed
+        sendResponse({ isPlaying: false, error: error.message });
+      });
+      return true; // Keep channel open
+    }
+    sendResponse({ isPlaying: false, error: 'Request not in playing state' });
+    return true;
+  }
+  
   return false;
 });
 
@@ -670,14 +1088,24 @@ function downloadAudio(requestId) {
     ? `${settings.downloadDirectory}/${sanitizedTitle}.mp3`
     : `${sanitizedTitle}.mp3`;
   
+  Logger.info('Starting download...', { 
+    filename, 
+    audioUrl: request.audioUrl.substring(0, 50) + '...',
+    downloadDirectory: settings.downloadDirectory
+  });
+  
   browser.downloads.download({
     url: request.audioUrl,
     filename: filename,
     saveAs: false
-  }).then(() => {
-    Logger.success(`Downloaded: ${filename}`);
+  }).then((downloadId) => {
+    Logger.success(`Download started with ID: ${downloadId}`, { filename });
   }).catch(error => {
-    Logger.error('Download failed', error);
+    Logger.error('Download failed', { 
+      error: error.message,
+      filename,
+      audioUrl: request.audioUrl.substring(0, 50) + '...'
+    });
   });
 }
 
@@ -757,4 +1185,4 @@ browser.menus.onClicked.addListener(async (info, tab) => {
   }
 });
 
-Logger.success('Background script ready! All systems initialized. [VERSION: 2024-11-23-03:35]');
+Logger.success('Background script ready! All systems initialized. [VERSION: 2024-11-23-05:07]');

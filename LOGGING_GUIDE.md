@@ -1,21 +1,30 @@
 # 📝 Logging System Guide
 
-The extension now has a **comprehensive logging system** with automatic file output!
+The extension has a **comprehensive logging system** for development and debugging!
 
 ## 🎯 How It Works
 
 All activity is logged to:
-1. **Browser Console** (Ctrl+Shift+J)
+1. **Browser Console** (Ctrl+Shift+J) - Real-time logs
 2. **Persistent Storage** (survives browser restarts)
-3. **Auto-saved File** - `~/Downloads/article-song-debug.log` ✨ **NEW!**
-4. **Debug Page** (view all logs in one place)
+3. **Debug Page** (view all logs in one nice UI)
+4. **Auto-saved File** (optional, for development only)
 
-## 📁 **BEST: Read the Log File** (For AI)
+## 📁 **Optional: Log File Output** (Development Mode)
 
-The extension **automatically writes logs** to:
-```
-~/Downloads/article-song-debug.log
-```
+By default, automatic file downloads are **DISABLED** for production use.
+
+### Enabling Development Mode:
+
+To enable automatic log file downloads:
+1. Edit `add-on/logger.js`
+2. Find the `init()` method
+3. Uncomment the line: `this.startAutoSave();`
+4. Find the `_addLog()` method
+5. Uncomment the error/success file write section
+6. Reload the extension
+
+Logs will then save to: `~/Downloads/article-song-debug.log`
 
 ### Quick Read (Terminal):
 ```bash
@@ -29,13 +38,7 @@ cat ~/Downloads/article-song-debug.log
 watch -n 2 cat ~/Downloads/article-song-debug.log
 ```
 
-### For AI to Read:
-```bash
-# I can read the file anytime with:
-read_file ~/Downloads/article-song-debug.log
-```
-
-**File updates:**
+**When enabled, file updates:**
 - ✅ Every 10 seconds automatically
 - ✅ Immediately after errors or successes
 - ✅ Overwrites previous file (no clutter!)
@@ -107,68 +110,80 @@ Real-time logs as they happen.
 
 ## 🐛 Debugging Flow
 
-### For You:
+### For Users:
 1. Load extension
 2. Try to generate a song
-3. If it fails, just share: `~/Downloads/article-song-debug.log`
+3. If it fails:
+   - Check browser console (Ctrl+Shift+J)
+   - Or open Debug page (Options → Debug Logs)
+   - Logs persist in browser storage
 
-### For Me (AI):
+### For Development (with log files enabled):
 ```bash
-# I can read the log file anytime:
-read_file ~/Downloads/article-song-debug.log
+# Read the auto-generated log file:
+cat ~/Downloads/article-song-debug.log
 
-# Then I can see:
-# - Exact API calls made
-# - Full error messages with stack traces
-# - Request/response data
-# - Timing of each step
+# Watch in real-time:
+watch -n 2 cat ~/Downloads/article-song-debug.log
 ```
+
+Logs include:
+- Exact API calls made
+- Full error messages with stack traces
+- Request/response data
+- Timing of each step
 
 ---
 
 ## 🎨 Log Levels
 
 - **ℹ️ info**: General information
-- **✅ success**: Successful operations (writes immediately to file!)
+- **✅ success**: Successful operations
 - **⚠️ warning**: Warning messages  
-- **❌ error**: Error messages (writes immediately to file!)
+- **❌ error**: Error messages
 - **🔍 debug**: Debug/detailed info
+
+*Note: In development mode (file output enabled), errors and successes write immediately to file*
 
 ---
 
 ## 💡 Tips
 
-1. **Check the file first** - Fastest way to debug
-   ```bash
-   cat ~/Downloads/article-song-debug.log
-   ```
+1. **Use Debug Page for quick viewing** - Nice UI, auto-refresh
+   - Options → Debug Logs
 
-2. **Watch in real-time** - See logs as they happen
-   ```bash
-   watch -n 1 cat ~/Downloads/article-song-debug.log
-   ```
+2. **Browser Console for real-time** - Best for active debugging
+   - Ctrl+Shift+J
 
-3. **File updates automatically** - No manual export needed!
+3. **Enable file mode for AI debugging** - Uncomment in logger.js
+   - Useful when AI needs to read logs remotely
 
-4. **Errors write immediately** - Don't wait 10 seconds for critical errors
+4. **Logs persist** - Survives browser restarts (stored in browser.storage.local)
 
 ---
 
 ## 🚀 Benefits
 
-### For You:
-- ✅ No manual export needed
-- ✅ Just share one file
-- ✅ Always up-to-date
+### For Users:
+- ✅ No automatic file downloads cluttering your system
+- ✅ Logs available in browser console and debug page
+- ✅ Persistent storage survives browser restarts
+- ✅ Easy to enable file mode for development
 
-### For AI (Me):
-- ✅ Can read logs anytime
-- ✅ No user interaction needed
+### For Developers:
+- ✅ Enable file mode when needed
 - ✅ Full context for debugging
 - ✅ Structured, parseable format
+- ✅ Real-time or historical logs available
 
 ---
 
-**Now I can debug without asking you to export logs!** 🎉
+**Production Mode (Default):**
+- Logs to console + browser storage only
+- No automatic file downloads
+- Clean and non-intrusive
 
-Just run the extension, and I can read `~/Downloads/article-song-debug.log` anytime!
+**Development Mode (Optional):**
+- Enable in `logger.js` for automatic file downloads
+- Useful for AI-assisted debugging
+- Easy to toggle on/off

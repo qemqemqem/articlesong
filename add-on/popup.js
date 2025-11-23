@@ -3,13 +3,18 @@
 
 let requests = [];
 let settings = {};
+let selectionInfo = { hasSelection: false, selectedText: '', wordCount: 0 };
+let useSelection = false; // Whether to use selected text for next song creation
 
 // Status display configuration
 const STATUS_CONFIG = {
   RECEIVED: { icon: '>', text: 'Request received', color: '#667eea' },
-  LYRICS: { icon: '>', text: 'Generating lyrics with Anthropic...', color: '#667eea' },
+  LYRICS_ANTHROPIC: { icon: '>', text: 'Generating lyrics with Claude...', color: '#667eea' },
+  LYRICS_SUNO: { icon: '>', text: 'Generating lyrics with SunoAPI...', color: '#667eea' },
+  LYRICS: { icon: '>', text: 'Generating lyrics...', color: '#667eea' }, // Fallback
   MUSIC: { icon: '>', text: 'Creating music with SunoAPI...', color: '#667eea' },
   PLAYING: { icon: '>', text: 'Playing now', color: '#48bb78' },
+  STREAMING: { icon: '~', text: 'Streaming (generating full quality...)', color: '#ed8936' },
   COMPLETE: { icon: '+', text: 'Complete', color: '#48bb78' },
   FAILED: { icon: 'x', text: 'Failed', color: '#f56565' },
   CANCELLED: { icon: '-', text: 'Cancelled', color: '#718096' }
@@ -19,6 +24,7 @@ const STATUS_CONFIG = {
 async function init() {
   await loadData();
   renderUI();
+  await updateNowPlaying(); // Initial check
   setupEventListeners();
   setupMessageListener();
 }
@@ -50,6 +56,7 @@ function renderUI() {
     activeSection.style.display = 'none';
     historySection.style.display = 'none';
     emptyState.style.display = 'block';
+    hideNowPlaying();
     return;
   }
   
@@ -78,10 +85,25 @@ function renderRequestList(requestList, containerId, isActive) {
 // Create a request card element
 function createRequestCard(request, isActive) {
   const card = document.createElement('div');
-  card.className = `request-card ${getCardClass(request.status)}`;
+  card.className = `request-card ${getCardClass(request.status, request.isStreaming)}`;
   card.dataset.requestId = request.id;
   
-  const config = STATUS_CONFIG[request.status] || STATUS_CONFIG.RECEIVED;
+  // Determine effective status (PLAYING can be streaming or complete)
+  let effectiveStatus = request.status;
+  if (request.status === 'PLAYING' && request.isStreaming) {
+    effectiveStatus = 'STREAMING';
+  }
+  
+  // For LYRICS status, check which provider is being used
+  if (request.status === 'LYRICS') {
+    if (request.lyricsProvider === 'anthropic') {
+      effectiveStatus = 'LYRICS_ANTHROPIC';
+    } else if (request.lyricsProvider === 'suno') {
+      effectiveStatus = 'LYRICS_SUNO';
+    }
+  }
+  
+  const config = STATUS_CONFIG[effectiveStatus] || STATUS_CONFIG.RECEIVED;
   
   // Title
   const title = document.createElement('div');
@@ -96,6 +118,12 @@ function createRequestCard(request, isActive) {
   status.className = 'request-status';
   
   if (isActive && (request.status === 'LYRICS' || request.status === 'MUSIC')) {
+    status.innerHTML = `
+      <span class="spinner"></span>
+      <span>${config.text}</span>
+    `;
+  } else if (effectiveStatus === 'STREAMING') {
+    // Show spinner for streaming too
     status.innerHTML = `
       <span class="spinner"></span>
       <span>${config.text}</span>
@@ -124,7 +152,14 @@ function createRequestCard(request, isActive) {
       const estimated = request.progress.estimated || 60;
       percent = 20 + (Math.min(elapsed / estimated, 1) * 60);
     } else if (request.status === 'PLAYING') {
-      percent = 90;
+      // Streaming vs complete
+      if (request.isStreaming) {
+        percent = 75; // Streaming ready (not fully complete)
+        progressFill.style.backgroundColor = '#ed8936'; // Orange for streaming
+      } else {
+        percent = 100; // Full quality ready
+        progressFill.style.backgroundColor = '#48bb78'; // Green for complete
+      }
     }
     
     progressFill.style.width = `${percent}%`;
@@ -150,7 +185,7 @@ function createRequestCard(request, isActive) {
     metaParts.push(formatRelativeTime(request.timestamps.completed));
   }
   
-  meta.innerHTML = metaParts.join(' • ');
+  meta.innerHTML = metaParts.join(' - ');
   card.appendChild(meta);
   
   // Error message
@@ -161,6 +196,29 @@ function createRequestCard(request, isActive) {
     card.appendChild(error);
   }
   
+  // Copy buttons for lyrics and style (if available)
+  if (request.lyrics || request.styleTags) {
+    const copySection = document.createElement('div');
+    copySection.className = 'copy-section';
+    copySection.style.cssText = 'display: flex; gap: 6px; margin-bottom: 8px;';
+    
+    if (request.lyrics) {
+      const copyLyricsBtn = createButton('Copy Lyrics', 'btn-secondary', () => copyToClipboard(request.lyrics, 'Lyrics', copyLyricsBtn));
+      copyLyricsBtn.style.flex = '1';
+      copyLyricsBtn.style.fontSize = '11px';
+      copySection.appendChild(copyLyricsBtn);
+    }
+    
+    if (request.styleTags) {
+      const copyStyleBtn = createButton('Copy Style', 'btn-secondary', () => copyToClipboard(request.styleTags, 'Style', copyStyleBtn));
+      copyStyleBtn.style.flex = '1';
+      copyStyleBtn.style.fontSize = '11px';
+      copySection.appendChild(copyStyleBtn);
+    }
+    
+    card.appendChild(copySection);
+  }
+  
   // Actions
   const actions = document.createElement('div');
   actions.className = 'request-actions';
@@ -169,6 +227,34 @@ function createRequestCard(request, isActive) {
     // Cancel button
     const cancelBtn = createButton('Cancel', 'btn-danger', () => cancelRequest(request.id));
     actions.appendChild(cancelBtn);
+  } else if (request.status === 'PLAYING') {
+    // Playing controls - show different UI for streaming vs complete
+    const playingNote = document.createElement('div');
+    playingNote.style.cssText = 'font-size: 12px; margin-bottom: 8px; font-weight: 500;';
+    
+      if (request.isStreaming) {
+        playingNote.style.color = '#ed8936';
+        playingNote.innerHTML = '~ Streaming now - Full quality generating...';
+      } else {
+        playingNote.style.color = '#48bb78';
+        playingNote.innerHTML = '+ Playing in page with audio controls';
+      }
+    
+    card.appendChild(playingNote);
+    
+    // Download button - show different text if streaming
+    const downloadBtnText = request.isStreaming ? 'Download (when ready)' : 'Download';
+    const downloadBtn = createButton(downloadBtnText, request.isStreaming ? 'btn-secondary' : 'btn-primary', () => downloadRequest(request.id));
+    if (request.isStreaming && !request.audioDownloadUrl) {
+      downloadBtn.disabled = true;
+      downloadBtn.style.opacity = '0.5';
+      downloadBtn.title = 'Download will be available when full quality generation completes';
+    }
+    actions.appendChild(downloadBtn);
+    
+    // Stop button
+    const stopBtn = createButton('Stop & Mark Complete', 'btn-secondary', () => stopPlaying(request.id));
+    actions.appendChild(stopBtn);
   } else if (request.status === 'COMPLETE') {
     // Download button
     const downloadBtn = createButton('Download', 'btn-primary', () => downloadRequest(request.id));
@@ -193,7 +279,8 @@ function isActive(status) {
   return ['RECEIVED', 'LYRICS', 'MUSIC', 'PLAYING'].includes(status);
 }
 
-function getCardClass(status) {
+function getCardClass(status, isStreaming) {
+  if (status === 'PLAYING' && isStreaming) return 'streaming';
   if (isActive(status)) return 'active';
   if (status === 'COMPLETE') return 'complete';
   if (status === 'FAILED') return 'failed';
@@ -267,12 +354,230 @@ async function retryRequest(requestId) {
   renderUI();
 }
 
+async function stopPlaying(requestId) {
+  await browser.runtime.sendMessage({ 
+    action: 'stopPlaying', 
+    requestId 
+  });
+  await loadData();
+  renderUI();
+}
+
+async function copyToClipboard(text, label, button) {
+  try {
+    await navigator.clipboard.writeText(text);
+    
+    // Visual feedback on button
+    if (button) {
+      const originalText = button.textContent;
+      const originalBg = button.style.backgroundColor;
+      const originalColor = button.style.color;
+      
+      button.textContent = 'Copied!';
+      button.style.backgroundColor = '#48bb78';
+      button.style.color = 'white';
+      button.disabled = true;
+      
+      setTimeout(() => {
+        button.textContent = originalText;
+        button.style.backgroundColor = originalBg;
+        button.style.color = originalColor;
+        button.disabled = false;
+      }, 1500);
+    }
+    
+    // Also show in footer
+    const statusEl = document.getElementById('footer-status');
+    if (statusEl) {
+      statusEl.textContent = `${label} copied!`;
+      statusEl.style.color = '#48bb78';
+      setTimeout(() => {
+        statusEl.textContent = '';
+      }, 2000);
+    }
+  } catch (error) {
+    console.error('Failed to copy to clipboard:', error);
+    alert(`Failed to copy ${label.toLowerCase()}: ${error.message}`);
+  }
+}
+
+// Now Playing Controls
+let currentPlayingRequest = null;
+let isPlaying = true; // Assume playing by default when song starts
+
+async function updateNowPlaying() {
+  // Find the first request in PLAYING status
+  const playingRequest = requests.find(r => r.status === 'PLAYING');
+  
+  if (playingRequest) {
+    // Validate that audio is actually playing in the page
+    try {
+      const validation = await browser.runtime.sendMessage({
+        action: 'validatePlaying',
+        requestId: playingRequest.id
+      });
+      
+      if (!validation || !validation.isPlaying) {
+        // Audio is not actually playing - mark as complete
+        console.log('Audio not playing, marking as complete');
+        await browser.runtime.sendMessage({
+          action: 'stopPlaying',
+          requestId: playingRequest.id
+        });
+        await loadData();
+        hideNowPlaying();
+        return;
+      }
+      
+      // Update play/pause state from validation
+      isPlaying = !validation.isPaused;
+    } catch (error) {
+      console.error('Failed to validate playing status:', error);
+    }
+    
+    // If we have a different playing request, or first time showing
+    if (!currentPlayingRequest || currentPlayingRequest.id !== playingRequest.id) {
+      currentPlayingRequest = playingRequest;
+    }
+    showNowPlaying(playingRequest);
+  } else {
+    // No playing request found - hide the bar
+    if (currentPlayingRequest) {
+      currentPlayingRequest = null;
+      hideNowPlaying();
+    }
+  }
+}
+
+function showNowPlaying(request) {
+  const nowPlaying = document.getElementById('now-playing');
+  const titleEl = document.getElementById('now-playing-title');
+  const subtitleEl = document.getElementById('now-playing-subtitle');
+  const iconEl = document.querySelector('.now-playing-icon');
+  
+  // Update text
+  if (request.isStreaming) {
+    titleEl.textContent = 'Streaming';
+    iconEl.textContent = '~';
+  } else {
+    titleEl.textContent = 'Now Playing';
+    iconEl.textContent = '~';
+  }
+  subtitleEl.textContent = request.articleTitle;
+  
+  // Show the bar
+  nowPlaying.style.display = 'flex';
+  
+  // Update play/pause button state
+  updatePlayPauseButton();
+}
+
+function hideNowPlaying() {
+  const nowPlaying = document.getElementById('now-playing');
+  nowPlaying.style.display = 'none';
+  currentPlayingRequest = null;
+}
+
+function updatePlayPauseButton() {
+  const icon = document.getElementById('play-pause-icon');
+  icon.textContent = isPlaying ? '||' : '>';
+}
+
+async function togglePlayPause() {
+  if (!currentPlayingRequest) {
+    console.error('No current playing request');
+    return;
+  }
+  
+  console.log('Toggling playback for request:', currentPlayingRequest.id);
+  
+  try {
+    // Send message to content script to toggle playback
+    const response = await browser.runtime.sendMessage({
+      action: 'togglePlayPause',
+      requestId: currentPlayingRequest.id
+    });
+    
+    console.log('Toggle playback response:', response);
+    
+    if (response && response.success && response.isPlaying !== undefined) {
+      isPlaying = response.isPlaying;
+      updatePlayPauseButton();
+    } else if (response && !response.success) {
+      console.error('Toggle playback failed:', response.error);
+    }
+  } catch (error) {
+    console.error('Failed to toggle playback:', error);
+  }
+}
+
 async function clearHistory() {
   if (confirm('Clear all completed and failed requests from history?')) {
     await browser.runtime.sendMessage({ action: 'clearHistory' });
     await loadData();
     renderUI();
   }
+}
+
+async function createSong(style) {
+  try {
+    // Get current tab
+    const tabs = await browser.tabs.query({active: true, currentWindow: true});
+    if (!tabs || tabs.length === 0) {
+      alert('No active tab found');
+      return;
+    }
+    
+    const tab = tabs[0];
+    
+    // Request song creation from background script
+    const response = await browser.runtime.sendMessage({ 
+      action: 'createSong',
+      songStyle: style,
+      tabId: tab.id,
+      tabTitle: tab.title,
+      tabUrl: tab.url
+    });
+    
+    // Check if request was successful
+    if (response && !response.success && response.error) {
+      // If it's an API key error, settings page will open automatically
+      // Just show a brief message in popup
+      if (response.error.includes('not configured')) {
+        // Settings page will open, don't show alert
+        return;
+      }
+      throw new Error(response.error);
+    }
+    
+    // Refresh UI to show new request
+    await loadData();
+    renderUI();
+    
+  } catch (error) {
+    console.error('Failed to create song:', error);
+    // Only show alert for non-API-key errors
+    if (!error.message.includes('not configured')) {
+      alert('Failed to create song: ' + error.message);
+    }
+  }
+}
+
+async function createCustomStyleSong() {
+  const input = document.getElementById('custom-style-input');
+  const customStyle = input.value.trim();
+  
+  if (!customStyle) {
+    alert('Please enter style guidance');
+    input.focus();
+    return;
+  }
+  
+  // Create song with custom style
+  await createSong(customStyle);
+  
+  // Clear input after successful creation
+  input.value = '';
 }
 
 // Event listeners
@@ -287,13 +592,42 @@ function setupEventListeners() {
     e.preventDefault();
     clearHistory();
   });
+  
+  // Create song buttons
+  document.querySelectorAll('.create-song-btn').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const style = btn.dataset.style;
+      await createSong(style);
+    });
+  });
+  
+  // Custom style button
+  document.getElementById('custom-style-btn').addEventListener('click', async () => {
+    await createCustomStyleSong();
+  });
+  
+  // Custom style input - Enter key
+  document.getElementById('custom-style-input').addEventListener('keypress', async (e) => {
+    if (e.key === 'Enter') {
+      await createCustomStyleSong();
+    }
+  });
+  
+  // Play/pause button
+  document.getElementById('play-pause-btn').addEventListener('click', async () => {
+    await togglePlayPause();
+  });
 }
 
 // Listen for updates from background
 function setupMessageListener() {
   browser.runtime.onMessage.addListener((message) => {
     if (message.action === 'requestsUpdated') {
-      loadData().then(renderUI);
+      loadData().then(() => {
+        renderUI();
+        // Update now playing specifically when requests change
+        updateNowPlaying();
+      });
     }
   });
 }
@@ -307,4 +641,9 @@ setInterval(() => {
     renderUI();
   }
 }, 1000);
+
+// Check now playing status every 3 seconds to validate audio is actually playing
+setInterval(() => {
+  updateNowPlaying();
+}, 3000);
 
