@@ -192,6 +192,12 @@ The original Python backend is archived in `old-python-backend/` for reference. 
 - **Claude (Anthropic)** - Lyrics generation (optional)
 - **Suno AI** (via SunoAPI.org) - Music generation & lyrics fallback
 
+## 📜 License
+
+MIT License - see [LICENSE](LICENSE) file for details.
+
+Open source and free to use, modify, and distribute!
+
 ---
 
 **Stay the course!** 🎸

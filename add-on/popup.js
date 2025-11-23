@@ -200,9 +200,9 @@ function createRequestCard(request, isActive) {
   // Title
   const title = document.createElement('div');
   title.className = 'request-title';
-  title.innerHTML = `
-    <span>${truncate(request.articleTitle, 40)}</span>
-  `;
+  const titleSpan = document.createElement('span');
+  titleSpan.textContent = truncate(request.articleTitle, 40);
+  title.appendChild(titleSpan);
   card.appendChild(title);
   
   // Status

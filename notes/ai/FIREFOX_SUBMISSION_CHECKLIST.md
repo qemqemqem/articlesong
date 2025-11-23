@@ -232,8 +232,9 @@ This creates `articlesong-firefox-v1.0.zip` with all necessary files.
 - **Privacy Policy URL:** [The public URL from Step 1] ⚠️ REQUIRED
 
 **License:**
-- **Choose:** MIT License (recommended) or All Rights Reserved
-- **TODO:** Decide → _________________
+- **Chosen:** MIT License ✅
+- Open source, permissive license
+- LICENSE file created in repository root
 
 **Version Notes:**
 ```

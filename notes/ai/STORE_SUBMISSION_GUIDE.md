@@ -95,10 +95,10 @@ Perfect for:
 **REQUIRED** - See Privacy Policy section below
 
 #### 9. **License**
-**TODO:** What license do you want?
-- Recommended: MIT License (permissive, popular)
-- Alternative: GPL-3.0 (copyleft)
-- Or: All Rights Reserved (proprietary)
+**Answer:** MIT License ✅
+- Open source, permissive, widely recognized
+- LICENSE file created in repo root
+- Allows free use, modification, and distribution
 
 #### 10. **Do you collect or transmit user data?**
 **Answer:** NO
