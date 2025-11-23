@@ -54,6 +54,8 @@ function saveOptions(e) {
   
   const anthropicKey = document.getElementById('anthropic_api_key').value.trim();
   const sunoKey = document.getElementById('suno_api_key').value.trim();
+  const autoDownload = document.getElementById('auto_download').checked;
+  const downloadDirectory = document.getElementById('download_directory').value.trim();
   
   // Validate
   const anthropicValidation = validateAnthropicKey(anthropicKey);
@@ -81,10 +83,21 @@ function saveOptions(e) {
   saveBtn.disabled = true;
   saveBtn.textContent = 'Saving...';
   
-  browser.storage.sync.set({
+  // Save API keys to sync storage
+  const syncPromise = browser.storage.sync.set({
     anthropic_api_key: anthropicKey,
     suno_api_key: sunoKey
-  }).then(() => {
+  });
+  
+  // Save settings to local storage
+  const localPromise = browser.storage.local.get('settings').then((result) => {
+    const settings = result.settings || {};
+    settings.autoDownload = autoDownload;
+    settings.downloadDirectory = downloadDirectory;
+    return browser.storage.local.set({ settings });
+  });
+  
+  Promise.all([syncPromise, localPromise]).then(() => {
     showStatus('Settings saved successfully!', true);
     saveBtn.disabled = false;
     saveBtn.textContent = originalText;
@@ -97,11 +110,24 @@ function saveOptions(e) {
 }
 
 function restoreOptions() {
-  browser.storage.sync.get(['anthropic_api_key', 'suno_api_key']).then((result) => {
+  // Load API keys from sync storage
+  const syncPromise = browser.storage.sync.get(['anthropic_api_key', 'suno_api_key']).then((result) => {
     document.getElementById('anthropic_api_key').value = result.anthropic_api_key || '';
     document.getElementById('suno_api_key').value = result.suno_api_key || '';
+  });
+  
+  // Load settings from local storage
+  const localPromise = browser.storage.local.get('settings').then((result) => {
+    const settings = result.settings || {};
+    document.getElementById('auto_download').checked = settings.autoDownload || false;
+    // Show actual value - could be empty string, undefined (use default), or a custom value
+    document.getElementById('download_directory').value = 
+      settings.downloadDirectory !== undefined ? settings.downloadDirectory : 'ArticleSongs';
+  });
+  
+  Promise.all([syncPromise, localPromise]).then(() => {
     updateInputVisuals();
-  }, console.error);
+  }).catch(console.error);
 }
 
 function setupPasswordToggles() {

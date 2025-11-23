@@ -1,32 +1,55 @@
 // content_script.js
 
+let currentRequestId = null;
+let currentAudio = null;
+
 // Function to play audio by injecting an <audio> element
-function playAudio(url) {
+function playAudio(url, requestId) {
+  // Store current request ID
+  currentRequestId = requestId;
+  
   // Check if an audio element already exists
-  let existingAudio = document.querySelector('audio');
+  let existingAudio = document.querySelector('audio[data-article-song]');
 
   if (existingAudio) {
     // If it exists, update its source and play
     existingAudio.src = url;
+    existingAudio.dataset.requestId = requestId;
     existingAudio.play();
+    currentAudio = existingAudio;
   } else {
     // If it doesn't exist, create a new audio element
     const audio = document.createElement('audio');
     audio.src = url;
     audio.controls = true; // Adds controls to play/pause
     audio.autoplay = true; // Automatically plays the audio
+    audio.dataset.articleSong = 'true';
+    audio.dataset.requestId = requestId;
 
     // Insert the audio element at the top of the webpage
     document.body.insertBefore(audio, document.body.firstChild);
+    currentAudio = audio;
 
-    // Optionally, add an event listener to track when the audio starts playing
+    // Track when audio starts playing
     audio.addEventListener('play', function() {
-      console.log('Audio is playing');
+      console.log('Article Song audio is playing');
+    });
+    
+    // Track when audio ends
+    audio.addEventListener('ended', function() {
+      console.log('Article Song audio ended');
+      const reqId = audio.dataset.requestId;
+      if (reqId) {
+        browser.runtime.sendMessage({
+          action: 'audioEnded',
+          requestId: reqId
+        });
+      }
     });
 
-    // Error handling in case of CORS issues
+    // Error handling
     audio.addEventListener('error', function(e) {
-      console.error('Failed to load audio:', e);
+      console.error('Failed to load Article Song audio:', e);
     });
   }
 }
@@ -63,7 +86,7 @@ function getText() {
 browser.runtime.onMessage.addListener((request, sender, sendResponse) => {
   if (request.action === "playAudio" && request.url) {
     // Handle the playAudio action
-    playAudio(request.url);
+    playAudio(request.url, request.requestId);
     sendResponse({ status: "Audio playing" });
   } else if (request.action === "getText") {
     // Handle the getText action

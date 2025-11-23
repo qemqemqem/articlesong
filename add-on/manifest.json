@@ -19,7 +19,8 @@
   },
 
   "browser_action": {
-    "default_icon": "icons/songify.png"
+    "default_icon": "icons/songify.png",
+    "default_popup": "popup.html"
   },
 
   "permissions": [

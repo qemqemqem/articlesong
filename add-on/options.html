@@ -254,6 +254,29 @@
       <div class="validation-message" id="suno-validation"></div>
     </div>
     
+    <div class="api-section">
+      <h2>Download Settings</h2>
+      <p>Configure automatic downloads for generated songs.</p>
+      
+      <div style="margin-top: 16px;">
+        <label style="display: flex; align-items: center; gap: 10px; cursor: pointer;">
+          <input type="checkbox" id="auto_download" style="width: 20px; height: 20px; cursor: pointer;">
+          <span style="font-size: 15px; font-weight: 500; color: #2d3748;">Automatically download songs when complete</span>
+        </label>
+      </div>
+      
+      <div style="margin-top: 16px;">
+        <label for="download_directory" style="display: block; font-weight: 500; margin-bottom: 8px; font-size: 14px; color: #4a5568;">
+          Download folder name (optional)
+        </label>
+        <input type="text" id="download_directory" placeholder="ArticleSongs" 
+               style="width: 100%; padding: 10px 14px; font-size: 14px; border: 2px solid #cbd5e0; border-radius: 6px; background: white;">
+        <div style="font-size: 12px; color: #718096; margin-top: 6px;">
+          Files will be saved to Downloads/[folder name]/. Leave empty to save directly to Downloads folder.
+        </div>
+      </div>
+    </div>
+    
     <div class="button-group">
       <button id="save">Save Settings</button>
     </div>

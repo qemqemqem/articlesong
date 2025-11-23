@@ -1,23 +1,9 @@
 {
   "name": "articlesong",
-  "version": "1.0.0",
-  "description": "Browser extension that converts web page content into songs using AI music generation",
+  "version": "2.0.0",
+  "description": "Browser extension that converts web pages into songs using Claude AI and Suno",
   "main": "add-on/background.js",
   "scripts": {
-    "test": "jest",
-    "test:unit": "jest --testPathPattern=tests/unit",
-    "test:integration": "jest --testPathPattern=tests/integration",
-    "test:e2e": "playwright test",
-    "test:e2e:firefox": "playwright test --project=firefox",
-    "test:e2e:chrome": "playwright test --project=chromium",
-    "test:e2e:headed": "playwright test --headed",
-    "test:e2e:debug": "playwright test --debug",
-    "test:suno": "playwright test tests/e2e/suno-integration.spec.js --headed",
-    "test:perf": "jest --testPathPattern=tests/performance",
-    "test:sec": "jest --testPathPattern=tests/security",
-    "test:watch": "jest --watch",
-    "test:coverage": "jest --coverage",
-    "ci": "npm run test:unit && npm run test:integration",
     "lint": "eslint add-on/**/*.js",
     "lint:fix": "eslint add-on/**/*.js --fix"
   },
@@ -25,35 +11,13 @@
     "browser-extension",
     "ai",
     "music",
-    "tts"
+    "suno",
+    "claude",
+    "anthropic"
   ],
   "author": "",
   "license": "MIT",
   "devDependencies": {
-    "@babel/core": "^7.23.6",
-    "@babel/preset-env": "^7.23.6",
-    "@playwright/test": "^1.56.1",
-    "babel-jest": "^29.7.0",
-    "eslint": "^8.56.0",
-    "jest": "^29.7.0",
-    "jest-environment-jsdom": "^29.7.0",
-    "playwright": "^1.40.1",
-    "selenium-webdriver": "^4.16.0"
-  },
-  "jest": {
-    "testEnvironment": "jsdom",
-    "setupFilesAfterEnv": [
-      "<rootDir>/tests/setup.js"
-    ],
-    "collectCoverageFrom": [
-      "add-on/**/*.js",
-      "!add-on/Readability.js"
-    ],
-    "coverageDirectory": "coverage",
-    "coverageReporters": [
-      "text",
-      "lcov",
-      "html"
-    ]
+    "eslint": "^8.56.0"
   }
 }

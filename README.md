@@ -74,14 +74,14 @@ add-on/
 ├── manifest.json       # Extension configuration
 ├── background.js       # Main logic (API calls, orchestration)
 ├── prompts.js          # Battle-tested prompts for lyrics generation
+├── logger.js           # Persistent logging system
 ├── content_script.js   # Page interaction and audio playback
 ├── options.html/js     # Settings page for API keys
+├── debug.html/js       # Real-time log viewer
 ├── Readability.js      # Article text extraction library
 └── icons/              # Extension icons
 
 old-python-backend/     # Archived Python version (for reference)
-test-extension/         # Minimal test extension
-tests/                  # Test suites
 ```
 
 ## 🚀 Usage
@@ -107,19 +107,21 @@ tests/                  # Test suites
 
 ## 🛠️ Development
 
-### Testing
-```bash
-# Run unit tests
-npm test
-
-# Run E2E tests (requires manual trigger)
-npm run test:e2e
-```
-
 ### Debugging
+
+**Option 1: Debug Page (Recommended)**
+1. Right-click extension → Manage Extension → Options
+2. Click "Debug Logs" link
+3. See real-time logs as you use the extension
+
+**Option 2: Browser Console**
 1. Open Browser Console (Ctrl+Shift+J)
-2. Look for messages starting with 🎵, 🎤, 🎨
-3. All API calls and state changes are logged
+2. All API calls and state changes are logged
+
+**Option 3: Log File**
+- Logs automatically save to `~/Downloads/article-song-debug.log`
+- Read with: `cat ~/Downloads/article-song-debug.log`
+- Or use: `./read-logs.sh`
 
 ## 📝 What Changed from v1.0?
 
