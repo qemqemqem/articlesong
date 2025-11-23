@@ -1,16 +1,270 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>Extension Options</title>
+  <title>Article Song - Settings</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      padding: 40px 20px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+    
+    .container {
+      background: white;
+      border-radius: 16px;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+      max-width: 600px;
+      width: 100%;
+      padding: 40px;
+    }
+    
+    .header {
+      text-align: center;
+      margin-bottom: 40px;
+    }
+    
+    .header h1 {
+      color: #2d3748;
+      font-size: 32px;
+      margin-bottom: 8px;
+      font-weight: 700;
+    }
+    
+    .header p {
+      color: #718096;
+      font-size: 16px;
+      line-height: 1.5;
+    }
+    
+    .api-section {
+      margin-bottom: 32px;
+      padding: 24px;
+      background: #f7fafc;
+      border-radius: 12px;
+      border: 2px solid #e2e8f0;
+      transition: border-color 0.2s;
+    }
+    
+    .api-section:focus-within {
+      border-color: #667eea;
+    }
+    
+    .api-section h2 {
+      color: #2d3748;
+      font-size: 20px;
+      margin-bottom: 12px;
+      font-weight: 600;
+    }
+    
+    
+    .api-section p {
+      color: #4a5568;
+      font-size: 14px;
+      margin-bottom: 8px;
+      line-height: 1.5;
+    }
+    
+    .api-section a {
+      color: #667eea;
+      text-decoration: none;
+      font-weight: 500;
+      transition: color 0.2s;
+    }
+    
+    .api-section a:hover {
+      color: #764ba2;
+      text-decoration: underline;
+    }
+    
+    .input-wrapper {
+      position: relative;
+      margin-top: 16px;
+    }
+    
+    .input-wrapper input {
+      width: 100%;
+      padding: 12px 48px 12px 16px;
+      font-size: 15px;
+      border: 2px solid #cbd5e0;
+      border-radius: 8px;
+      font-family: 'Monaco', 'Courier New', monospace;
+      transition: all 0.2s;
+      background: white;
+    }
+    
+    .input-wrapper input:focus {
+      outline: none;
+      border-color: #667eea;
+      box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+    }
+    
+    .input-wrapper input.filled {
+      border-color: #48bb78;
+    }
+    
+    .toggle-password {
+      position: absolute;
+      right: 12px;
+      top: 50%;
+      transform: translateY(-50%);
+      background: #e2e8f0;
+      border: none;
+      cursor: pointer;
+      padding: 6px 12px;
+      font-size: 12px;
+      color: #4a5568;
+      transition: all 0.2s;
+      line-height: 1;
+      border-radius: 4px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    
+    .toggle-password:hover {
+      background: #cbd5e0;
+      color: #2d3748;
+    }
+    
+    .button-group {
+      display: flex;
+      gap: 12px;
+      margin-top: 32px;
+    }
+    
+    button {
+      flex: 1;
+      padding: 14px 24px;
+      font-size: 16px;
+      font-weight: 600;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: all 0.2s;
+      font-family: inherit;
+    }
+    
+    #save {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+    }
+    
+    #save:hover:not(:disabled) {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 16px rgba(102, 126, 234, 0.5);
+    }
+    
+    #save:active:not(:disabled) {
+      transform: translateY(0);
+    }
+    
+    #save:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+    
+    .status {
+      margin-top: 20px;
+      padding: 16px;
+      border-radius: 8px;
+      font-size: 15px;
+      font-weight: 500;
+      text-align: center;
+      opacity: 0;
+      transform: translateY(-10px);
+      transition: all 0.3s;
+    }
+    
+    .status.show {
+      opacity: 1;
+      transform: translateY(0);
+    }
+    
+    .status.success {
+      background: #c6f6d5;
+      color: #22543d;
+      border: 2px solid #48bb78;
+    }
+    
+    .status.error {
+      background: #fed7d7;
+      color: #742a2a;
+      border: 2px solid #f56565;
+    }
+    
+    .footer {
+      margin-top: 32px;
+      padding-top: 24px;
+      border-top: 2px solid #e2e8f0;
+      text-align: center;
+      color: #718096;
+      font-size: 13px;
+    }
+    
+    .validation-message {
+      font-size: 13px;
+      margin-top: 8px;
+      color: #e53e3e;
+      opacity: 0;
+      transition: opacity 0.2s;
+    }
+    
+    .validation-message.show {
+      opacity: 1;
+    }
+  </style>
 </head>
 <body>
-  <label for="anthropic_api_key">Anthropic API Key:</label>
-  <input type="text" id="anthropic_api_key">
-  <br><br>
-  <label for="piapi_key">PIAPI Key:</label>
-  <input type="text" id="piapi_key">
-  <br><br>
-  <button id="save">Save</button>
+  <div class="container">
+    <div class="header">
+      <h1>Article Song</h1>
+      <p>Configure your API keys to transform articles into songs</p>
+    </div>
+    
+    <div class="api-section">
+      <h2>Anthropic API Key</h2>
+      <p>Used for generating song lyrics with Claude AI.</p>
+      <p><a href="https://console.anthropic.com/" target="_blank">Get your key from console.anthropic.com →</a></p>
+      <div class="input-wrapper">
+        <input type="password" id="anthropic_api_key" placeholder="sk-ant-..." autocomplete="off">
+        <button type="button" class="toggle-password" data-target="anthropic_api_key">show</button>
+      </div>
+      <div class="validation-message" id="anthropic-validation"></div>
+    </div>
+    
+    <div class="api-section">
+      <h2>SunoAPI Key</h2>
+      <p>Used for generating music from lyrics.</p>
+      <p><a href="https://sunoapi.org/pricing" target="_blank">Get your key from sunoapi.org →</a></p>
+      <div class="input-wrapper">
+        <input type="password" id="suno_api_key" placeholder="Your SunoAPI key" autocomplete="off">
+        <button type="button" class="toggle-password" data-target="suno_api_key">show</button>
+      </div>
+      <div class="validation-message" id="suno-validation"></div>
+    </div>
+    
+    <div class="button-group">
+      <button id="save">Save Settings</button>
+    </div>
+    
+    <div id="status" class="status"></div>
+    
+    <div class="footer">
+      Both keys are required for the extension to work properly
+    </div>
+  </div>
+  
   <script src="options.js"></script>
 </body>
 </html>

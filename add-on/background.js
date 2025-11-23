@@ -1,75 +1,517 @@
-// Add these variables at the top of the file
+/**
+ * Article Song - Background Script
+ * Browser-only version using SunoAPI.org + Anthropic Claude
+ * 
+ * Flow:
+ * 1. User clicks extension button or menu item
+ * 2. Get article text from content script
+ * 3. Call Claude API to generate lyrics
+ * 4. Call SunoAPI.org to generate music
+ * 5. Poll for completion
+ * 6. Play audio in content script
+ */
+
+// Load prompts
+const script = document.createElement('script');
+script.src = browser.runtime.getURL('prompts.js');
+document.head.appendChild(script);
+
+// API Keys (loaded from storage)
 let ANTHROPIC_API_KEY = '';
-let PIAPI_KEY = '';
-let port;
+let SUNO_API_KEY = '';
 
-// Function to connect to the native app
-function connectToNativeApp() {
-  if (port) {
-    port.disconnect();
-  }
-  port = browser.runtime.connectNative("article_singer");
-
-  port.onDisconnect.addListener((p) => {
-    if (p.error) {
-      console.error(`Disconnected due to an error: ${p.error.message}`);
-    }
-    port = null;
-  });
-
-  port.onMessage.addListener((response) => {
-    console.log("Received: ", response);
-    if (response.audio_url) {
-      forwardAudioUrlToContentScript(response.audio_url);
-      stopTimer();
-    }
-    if (response.song_info) {
-      console.log("Updating song info", response.song_info);
-      updateSongInfo(response.song_info);
-    }
-    if (response.url) {
-      currentSong.url = response.url;
-    }
-    if (response.song_info && response.song_info.style) {
-      currentSong.style = response.song_info.style;
-    }
-  });
-}
-
-// Add this function to load the API keys
-function loadAPIKeys() {
-  browser.storage.sync.get(['anthropic_api_key', 'piapi_key']).then((result) => {
-    ANTHROPIC_API_KEY = result.anthropic_api_key || '';
-    PIAPI_KEY = result.piapi_key || '';
-    console.log('API keys loaded');
-  }, console.error);
-}
-
-// Call loadAPIKeys and connectToNativeApp at startup
-loadAPIKeys();
-connectToNativeApp();
-
-// Store current song information and state
+// Current song state
 let currentSong = {
   title: "",
   style: "",
-  state: "idle", // Can be "idle", "writing", or "playing"
+  state: "idle", // idle, generating_lyrics, generating_music, playing
   url: "",
-  lyrics: ""
+  lyrics: "",
+  taskId: ""
 };
 
 // Track start time and elapsed time
 let startTime = null;
 let elapsedTimeInterval = null;
-
-// Store the ID of the tab that made the request
 let requestingTabId = null;
 
-// Set initial browser action title
-updateBrowserActionTitle();
+const EXPECTED_DURATION = 60; // seconds
 
-// Expected duration for song writing (in seconds)
-const EXPECTED_DURATION = 60;
+Logger.info('Article Song extension loaded! [VERSION: 2024-11-23-03:28 - FIXED RESPONSE PARSING]');
+
+// Load API keys from storage
+function loadAPIKeys() {
+  browser.storage.sync.get(['anthropic_api_key', 'suno_api_key']).then((result) => {
+    ANTHROPIC_API_KEY = result.anthropic_api_key || '';
+    SUNO_API_KEY = result.suno_api_key || '';
+    Logger.success('API keys loaded', {
+      anthropic: ANTHROPIC_API_KEY ? '✓' : '✗',
+      suno: SUNO_API_KEY ? '✓' : '✗'
+    });
+  }, (error) => Logger.error('Failed to load API keys', error));
+}
+
+loadAPIKeys();
+
+// Listen for storage changes
+browser.storage.onChanged.addListener((changes, area) => {
+  if (area === 'sync') {
+    if (changes.anthropic_api_key) {
+      ANTHROPIC_API_KEY = changes.anthropic_api_key.newValue;
+    }
+    if (changes.suno_api_key) {
+      SUNO_API_KEY = changes.suno_api_key.newValue;
+    }
+  }
+});
+
+// ============================================================================
+// CLAUDE API - Generate Lyrics
+// ============================================================================
+
+async function generateLyrics(articleText, songStyle) {
+  Logger.info(`Generating ${songStyle} lyrics...`);
+  
+  if (!ANTHROPIC_API_KEY) {
+    const error = 'Anthropic API key not configured. Please set it in extension options.';
+    Logger.error(error);
+    throw new Error(error);
+  }
+  
+  // Special case: "straight" means use article text directly
+  if (songStyle === "straight") {
+    return articleText;
+  }
+  
+  // Get prompt from prompts.js
+  const prompt = getLyricsPrompt(articleText, songStyle);
+  
+  const response = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-api-key': ANTHROPIC_API_KEY,
+      'anthropic-version': '2023-06-01',
+      'anthropic-dangerous-direct-browser-access': 'true' // Required for browser requests
+    },
+    body: JSON.stringify({
+      model: 'claude-sonnet-4-20250514',
+      max_tokens: 700,
+      temperature: 0.2,
+      system: SYSTEM_PROMPT,
+      messages: [{
+        role: 'user',
+        content: prompt
+      }]
+    })
+  });
+  
+  if (!response.ok) {
+    const error = await response.text();
+    throw new Error(`Claude API error: ${response.status} - ${error}`);
+  }
+  
+  const data = await response.json();
+  const lyrics = data.content[0].text.trim();
+  
+  Logger.success(`Lyrics generated (${lyrics.length} chars)`, { preview: lyrics.substring(0, 100) + '...' });
+  return lyrics;
+}
+
+async function generateStyleTags(lyrics, songStyle) {
+  Logger.info(`Generating style tags for ${songStyle}...`);
+  
+  if (!ANTHROPIC_API_KEY) {
+    const error = 'Anthropic API key not configured';
+    Logger.error(error);
+    throw new Error(error);
+  }
+  
+  const prompt = getStyleTagsPrompt(lyrics, songStyle);
+  
+  const response = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-api-key': ANTHROPIC_API_KEY,
+      'anthropic-version': '2023-06-01',
+      'anthropic-dangerous-direct-browser-access': 'true' // Required for browser requests
+    },
+    body: JSON.stringify({
+      model: 'claude-sonnet-4-20250514',
+      max_tokens: 50,
+      temperature: 0.2,
+      system: SYSTEM_PROMPT,
+      messages: [{
+        role: 'user',
+        content: prompt
+      }]
+    })
+  });
+  
+  if (!response.ok) {
+    const error = await response.text();
+    throw new Error(`Claude API error: ${response.status} - ${error}`);
+  }
+  
+  const data = await response.json();
+  const tags = data.content[0].text.trim();
+  
+  // Trim to 120 chars as required by Suno
+  const trimmedTags = tags.substring(0, 120);
+  
+  Logger.success(`Style tags generated: "${trimmedTags}"`);
+  return trimmedTags;
+}
+
+// ============================================================================
+// SUNO API - Generate Music
+// ============================================================================
+
+async function generateMusic(lyrics, styleTags, title) {
+  Logger.info(`Sending to Suno API...`, { title, styleTags });
+  
+  if (!SUNO_API_KEY) {
+    const error = 'SunoAPI key not configured. Please set it in extension options.';
+    Logger.error(error);
+    throw new Error(error);
+  }
+  
+  // Official SunoAPI.org format for custom mode with lyrics
+  const requestBody = {
+    customMode: true,
+    instrumental: false,
+    model: 'V5',
+    prompt: lyrics.substring(0, 5000), // V5 limit: 5000 chars
+    style: styleTags.substring(0, 1000), // V5 limit: 1000 chars
+    title: title.substring(0, 80), // Limit: 80 chars
+    callBackUrl: 'https://webhook.site/unique-uuid-here' // API requires this despite docs saying optional
+  };
+  
+  Logger.info('🚨 ABOUT TO SEND TO SUNO API 🚨');
+  Logger.debug('Full Suno API request body:', requestBody);
+  Logger.info('Request keys present:', Object.keys(requestBody));
+  Logger.info('callBackUrl value:', requestBody.callBackUrl);
+  Logger.info('Request body length:', JSON.stringify(requestBody).length);
+  
+  Logger.info('🌐 Sending HTTP POST to Suno...');
+  Logger.info('Endpoint: https://api.sunoapi.org/api/v1/generate');
+  Logger.info('Authorization header present:', SUNO_API_KEY ? 'YES' : 'NO');
+  
+  const response = await fetch('https://api.sunoapi.org/api/v1/generate', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${SUNO_API_KEY}`,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify(requestBody)
+  });
+  
+  Logger.info('📥 Got HTTP response from Suno');
+  Logger.info('Response status:', response.status);
+  Logger.info('Response statusText:', response.statusText);
+  Logger.info('Response headers:', [...response.headers.entries()]);
+  
+  if (!response.ok) {
+    const error = await response.text();
+    Logger.error(`🚨 Suno HTTP error: ${response.status}`, { 
+      status: response.status,
+      statusText: response.statusText,
+      errorBody: error 
+    });
+    throw new Error(`Suno API error: ${response.status} - ${error}`);
+  }
+  
+  const data = await response.json();
+  Logger.info('📦 Parsed Suno response');
+  Logger.debug('Full Suno API response:', data);
+  Logger.info('Response code:', data?.code);
+  Logger.info('Response msg:', data?.msg);
+  Logger.info('Response data:', data?.data);
+  
+  // Official response format: { code: 200, msg: "success", data: { taskId: "..." } }
+  if (!data || data.code !== 200) {
+    Logger.error('Suno API returned error', { 
+      fullResponse: data,
+      code: data?.code,
+      msg: data?.msg
+    });
+    throw new Error(`Suno API error: ${data?.msg || 'Unknown error'}`);
+  }
+  
+  if (!data.data || !data.data.taskId) {
+    Logger.error('Suno API missing taskId', { 
+      fullResponse: data,
+      hasData: !!data.data
+    });
+    throw new Error(`Suno API returned unexpected response structure`);
+  }
+  
+  const taskId = data.data.taskId;
+  
+  Logger.success(`Suno task started: ${taskId}`);
+  return taskId;
+}
+
+async function pollSunoStatus(taskId) {
+  Logger.debug(`Checking Suno status for ${taskId}...`);
+  
+  const response = await fetch(
+    `https://api.sunoapi.org/api/v1/generate/record-info?taskId=${taskId}`,
+    {
+      headers: {
+        'Authorization': `Bearer ${SUNO_API_KEY}`
+      }
+    }
+  );
+  
+  if (!response.ok) {
+    const error = await response.text();
+    Logger.error(`Suno status check HTTP error: ${response.status}`, { error });
+    throw new Error(`Suno status check failed: ${response.status}`);
+  }
+  
+  const data = await response.json();
+  
+  // Official format: { code: 200, msg: "success", data: { taskId, status, response } }
+  if (!data || data.code !== 200) {
+    Logger.error('Suno status check returned error', { 
+      fullResponse: data,
+      code: data?.code,
+      msg: data?.msg
+    });
+    throw new Error(`Suno status error: ${data?.msg || 'Unknown error'}`);
+  }
+  
+  return data.data;
+}
+
+async function waitForSunoCompletion(taskId) {
+  const maxAttempts = 48; // 4 minutes max (48 * 5s)
+  let attempts = 0;
+  
+  while (attempts < maxAttempts) {
+    const statusData = await pollSunoStatus(taskId);
+    
+    Logger.debug(`Poll attempt ${attempts + 1}/${maxAttempts}`, { 
+      status: statusData.status,
+      taskId: statusData.taskId
+    });
+    
+    // Official format: status is "SUCCESS", "PROCESSING", "PENDING", or "FAILED"
+    if (statusData.status === 'SUCCESS') {
+      // Response structure: { response: { sunoData: [ { audioUrl, title, ... } ] } }
+      if (!statusData.response || !statusData.response.sunoData || !statusData.response.sunoData[0]) {
+        Logger.error('Suno SUCCESS but missing data', { statusData });
+        throw new Error('Suno returned SUCCESS but no audio data found');
+      }
+      
+      const song = statusData.response.sunoData[0];
+      Logger.success(`Song ready: ${song.title}`, { audioUrl: song.audioUrl });
+      return {
+        audioUrl: song.audioUrl,
+        imageUrl: song.imageUrl,
+        title: song.title,
+        lyrics: song.prompt
+      };
+    } else if (statusData.status === 'FAILED') {
+      Logger.error('Suno generation failed', { statusData });
+      throw new Error('Suno generation failed');
+    }
+    
+    // Still PROCESSING or PENDING, wait 5 seconds
+    await new Promise(resolve => setTimeout(resolve, 5000));
+    attempts++;
+    
+    // Update badge to show progress
+    updateBrowserActionTitle();
+    updateBadge();
+  }
+  
+  throw new Error('Suno generation timeout (4 minutes)');
+}
+
+// ============================================================================
+// MAIN FLOW - Orchestrate Everything
+// ============================================================================
+
+async function generateSongFromArticle(articleText, songStyle, pageTitle) {
+  Logger.info('═══════════════════════════════════════════════════════');
+  Logger.info(`Starting song generation: ${songStyle}`, {
+    pageTitle,
+    textLength: articleText.length,
+    articlePreview: articleText.substring(0, 200) + '...'
+  });
+  
+  try {
+    currentSong.title = pageTitle;
+    currentSong.state = "generating_lyrics";
+    startTimer();
+    
+    // Step 1: Generate lyrics with Claude
+    const lyrics = await generateLyrics(articleText, songStyle);
+    currentSong.lyrics = lyrics;
+    
+    // Step 2: Generate style tags with Claude
+    const styleTags = await generateStyleTags(lyrics, songStyle);
+    currentSong.style = styleTags;
+    
+    // Step 3: Send to Suno
+    currentSong.state = "generating_music";
+    updateBrowserActionTitle();
+    const taskId = await generateMusic(lyrics, styleTags, pageTitle);
+    currentSong.taskId = taskId;
+    
+    // Step 4: Poll for completion
+    const result = await waitForSunoCompletion(taskId);
+    
+    // Success!
+    currentSong.url = result.audioUrl;
+    currentSong.state = "playing";
+    stopTimer();
+    updateBrowserActionTitle();
+    
+    Logger.success('SONG GENERATION COMPLETE!', {
+      audioUrl: result.audioUrl,
+      title: result.title,
+      lyrics: currentSong.lyrics,
+      style: currentSong.style
+    });
+    Logger.info('═══════════════════════════════════════════════════════');
+    
+    return result.audioUrl;
+    
+  } catch (error) {
+    Logger.error('Song generation failed', {
+      error: error.message,
+      stack: error.stack,
+      songStyle,
+      pageTitle
+    });
+    stopTimer();
+    currentSong.state = "idle";
+    updateBrowserActionTitle();
+    
+    browser.notifications.create({
+      type: 'basic',
+      iconUrl: browser.runtime.getURL('icons/songify.png'),
+      title: '❌ Song Generation Failed',
+      message: error.message
+    });
+    
+    throw error;
+  }
+}
+
+// ============================================================================
+// UI AND STATE MANAGEMENT
+// ============================================================================
+
+function updateBrowserActionTitle() {
+  let title = "Turn articles into songs!";
+  
+  if (currentSong.title) {
+    const elapsedTime = startTime ? Math.floor((Date.now() - startTime) / 1000) : 0;
+    
+    if (currentSong.state === "generating_lyrics") {
+      title = `Generating lyrics for "${currentSong.title}"\nElapsed: ${formatTime(elapsedTime)}`;
+    } else if (currentSong.state === "generating_music") {
+      title = `Creating music for "${currentSong.title}"\nElapsed: ${formatTime(elapsedTime)} / ~${EXPECTED_DURATION}s`;
+    } else if (currentSong.state === "playing") {
+      title = `Now playing: "${currentSong.title}"\nStyle: ${currentSong.style}\n\nLyrics:\n${currentSong.lyrics}`;
+    }
+  }
+  
+  browser.browserAction.setTitle({ title });
+}
+
+function formatTime(seconds) {
+  const minutes = Math.floor(seconds / 60);
+  const remainingSeconds = seconds % 60;
+  return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
+}
+
+function startTimer() {
+  if (elapsedTimeInterval) {
+    clearInterval(elapsedTimeInterval);
+  }
+  startTime = Date.now();
+  elapsedTimeInterval = setInterval(() => {
+    updateBrowserActionTitle();
+    updateBadge();
+  }, 1000);
+}
+
+function stopTimer() {
+  if (elapsedTimeInterval) {
+    clearInterval(elapsedTimeInterval);
+    elapsedTimeInterval = null;
+    startTime = null;
+    updateBrowserActionTitle();
+    updateBadge();
+  }
+}
+
+function updateBadge() {
+  if (startTime) {
+    const elapsedTime = Math.floor((Date.now() - startTime) / 1000);
+    browser.browserAction.setBadgeText({ text: formatTime(elapsedTime) });
+    browser.browserAction.setBadgeBackgroundColor({ color: "#4CAF50" });
+  } else {
+    browser.browserAction.setBadgeText({ text: "" });
+  }
+}
+
+// ============================================================================
+// CONTENT SCRIPT COMMUNICATION
+// ============================================================================
+
+async function getCurrentTabContent() {
+  const tabs = await browser.tabs.query({active: true, currentWindow: true});
+  if (tabs.length > 0) {
+    requestingTabId = tabs[0].id;
+    return await browser.tabs.sendMessage(tabs[0].id, {action: "getText"});
+  }
+  return null;
+}
+
+async function forwardAudioUrlToContentScript(audioUrl) {
+  if (!requestingTabId) {
+    console.error('No requesting tab ID');
+    return;
+  }
+  
+  try {
+    // Check if content script is ready
+    const isReady = await browser.tabs.sendMessage(requestingTabId, {action: "ping"}).catch(() => false);
+    
+    if (isReady) {
+      await browser.tabs.sendMessage(requestingTabId, {action: "playAudio", url: audioUrl});
+      Logger.success('Audio URL sent to content script', { audioUrl });
+      
+      // Download after 4 minutes (let it stream first)
+      setTimeout(() => {
+        Logger.info('Downloading audio file...', { audioUrl });
+        browser.downloads.download({
+          url: audioUrl,
+          filename: `${currentSong.title || 'song'}.mp3`
+        });
+      }, 4 * 60 * 1000);
+      
+      requestingTabId = null;
+    } else {
+      // Retry after a second
+      Logger.warning('Content script not ready, retrying...');
+      setTimeout(() => forwardAudioUrlToContentScript(audioUrl), 1000);
+    }
+  } catch (error) {
+    Logger.error('Error sending message to content script', error);
+  }
+}
+
+// ============================================================================
+// MENU ITEMS
+// ============================================================================
 
 browser.menus.create({
   id: "musical-song",
@@ -77,7 +519,6 @@ browser.menus.create({
   contexts: ["browser_action"]
 });
 
-// Create context menu items
 browser.menus.create({
   id: "spoken-word-song",
   title: "Spoken Word Song",
@@ -108,260 +549,47 @@ browser.menus.create({
   contexts: ["browser_action"]
 });
 
-// Listen for context menu clicks
-browser.menus.onClicked.addListener((info, tab) => {
-  getCurrentTabContent().then(content => {
-    if (content) {
-      let songType;
-      switch (info.menuItemId) {
-        case "spoken-word-song":
-          songType = "spoken";
-          break;
-        case "musical-song":
-          songType = "musical";
-          break;
-        case "meme-song":
-          songType = "meme";
-          break;
-        case "cute-song":
-          songType = "cute";
-          break;
-        case "informative-song":
-          songType = "informative";
-          break;
-        case "straight-lyrics":
-          songType = "straight";
-          break;
-      }
-      requestingTabId = tab.id; // Store the tab ID
-      sendContentToApp(content, songType);
-      startTimer();
-    }
-  });
-});
+// ============================================================================
+// EVENT LISTENERS
+// ============================================================================
 
-/*
-Listen for messages from the app.
-*/
-port.onMessage.addListener((response) => {
-  console.log("Received: ", response);
-  if (response.audio_url) {
-    forwardAudioUrlToContentScript(response.audio_url);
-    stopTimer();
-  }
-  if (response.song_info) {
-    console.log("Updating song info", response.song_info);
-    updateSongInfo(response.song_info);
-  }
-  if (response.url) {
-    currentSong.url = response.url;
-  }
-  if (response.song_info && response.song_info.style) {
-    currentSong.style = response.song_info.style;
-  }
-});
-
-// Function to update song information
-function updateSongInfo(songInfo) {
-  currentSong = {...currentSong, ...songInfo};
-  updateBrowserActionTitle();
-}
-
-// Function to update browser action title
-function updateBrowserActionTitle() {
-  let my_title = "Turn articles into songs!";
-  if (currentSong.title) {
-    let elapsedTime = startTime ? Math.floor((Date.now() - startTime) / 1000) : 0;
-    let currentTime = new Date().toLocaleTimeString();
-
-    if (currentSong.state === "writing") {
-      my_title = `Writing song about "${currentSong.title}"\n` +
-                 `Have waited ${formatTime(elapsedTime)} out of expected ${EXPECTED_DURATION}s for response`;
-    } else if (currentSong.state === "playing") {
-      my_title = `Currently playing: "${currentSong.title}"\n` +
-                 `Style: ${currentSong.style || 'Unknown'}\n` +
-                 `Audio URL: ${currentSong.url}\n` +
-                 `\nLyrics: \n${currentSong.lyrics}`;
-    }
-  }
-  browser.browserAction.setTitle({ title: my_title });
-}
-
-// Function to format time in MM:SS format
-function formatTime(seconds) {
-  const minutes = Math.floor(seconds / 60);
-  const remainingSeconds = seconds % 60;
-  return `${minutes.toString().padStart(1, '0')}:${remainingSeconds.toString().padStart(2, '0')}`;
-}
-
-// Function to start the timer
-function startTimer() {
-  if (elapsedTimeInterval) {
-    clearInterval(elapsedTimeInterval);
-  }
-  startTime = Date.now();
-  currentSong.state = "writing";
-  elapsedTimeInterval = setInterval(() => {
-    updateBrowserActionTitle();
-    updateBadge();
-  }, 1000);
-}
-
-// Function to stop the timer
-function stopTimer() {
-  if (elapsedTimeInterval) {
-    clearInterval(elapsedTimeInterval);
-    elapsedTimeInterval = null;
-    startTime = null;
-    currentSong.state = "playing";
-    updateBrowserActionTitle();
-    updateBadge();
-  }
-}
-
-// Function to update the badge
-function updateBadge() {
-  if (startTime) {
-    let elapsedTime = Math.floor((Date.now() - startTime) / 1000);
-    browser.browserAction.setBadgeText({ text: formatTime(elapsedTime) });
-    browser.browserAction.setBadgeBackgroundColor({ color: "#4CAF50" });
-  } else {
-    browser.browserAction.setBadgeText({ text: "" });
-  }
-}
-
-/*
-Function to get the main content of the current tab
-*/
-async function getCurrentTabContent() {
-  let tabs = await browser.tabs.query({active: true, currentWindow: true});
-  if (tabs.length > 0) {
-    requestingTabId = tabs[0].id; // Store the tab ID
-    return await browser.tabs.sendMessage(tabs[0].id, {action: "getText"});
-  }
-  return null;
-}
-
-/*
-Function to forward the audio URL to the content script for playback and download
-*/
-async function forwardAudioUrlToContentScript(audioUrl) {
-  if (currentSong.url === audioUrl && currentSong.state === "playing") {
-    console.log('Audio already playing, skipping...');
+// Menu clicks
+browser.menus.onClicked.addListener(async (info, tab) => {
+  const content = await getCurrentTabContent();
+  if (!content) {
+    Logger.error('Failed to get page content from tab (menu click)');
     return;
   }
-
-  try {
-    if (requestingTabId) {
-      console.log('Sending audio URL to content script:', audioUrl);
-      // Check if the content script is ready
-      const isContentScriptReady = await browser.tabs.sendMessage(requestingTabId, {action: "ping"}).catch(() => false);
-      if (isContentScriptReady) {
-        await browser.tabs.sendMessage(requestingTabId, {action: "playAudio", url: audioUrl});
-        stopTimer();
-        currentSong.state = "playing";
-        currentSong.url = audioUrl;
-        updateBrowserActionTitle();
-
-        // Start a 4-minute timer to download the audio
-        // NOTE: This is a hack to give the file time to finish streaming.
-        // We apologize to the reader for this inelegant solution.
-        setTimeout(() => {
-          console.log('Downloading audio file...' + audioUrl)
-          browser.downloads.download({
-            url: audioUrl,
-            filename: `${currentSong.title || 'song'}.mp3`
-          });
-        }, 4 * 60 * 1000); // 4 minutes in milliseconds
-
-        requestingTabId = null; // Reset the requesting tab ID after use
-      } else {
-        console.log('Content script not ready, waiting and retrying...');
-        // Wait for a short time and retry
-        setTimeout(() => forwardAudioUrlToContentScript(audioUrl), 1000);
-      }
-    } else {
-      console.error('No requesting tab ID found to send the audio URL');
-    }
-  } catch (error) {
-    console.error('Error sending message to content script:', error);
+  
+  let songStyle;
+  switch (info.menuItemId) {
+    case "spoken-word-song": songStyle = "spoken"; break;
+    case "musical-song": songStyle = "musical"; break;
+    case "meme-song": songStyle = "meme"; break;
+    case "cute-song": songStyle = "cute"; break;
+    case "informative-song": songStyle = "informative"; break;
+    case "straight-lyrics": songStyle = "straight"; break;
+    default: songStyle = "musical";
   }
-}
-
-/*
-Function to send content to the app
-*/
-async function sendContentToApp(content, songType = "default") {
-  console.log(`Sending main content to Python app for ${songType} song`);
-
-  if (requestingTabId) {
-    let tab = await browser.tabs.get(requestingTabId);
-    currentSong.title = tab.title || "Unknown Title";
-    updateBrowserActionTitle();
-  }
-
-  const payload = {
-    action: "process_text",
-    text: JSON.stringify(content),
-    songType: songType,
-    anthropic_api_key: ANTHROPIC_API_KEY,
-    piapi_key: PIAPI_KEY
-  };
-
-  if (port) {
-    port.postMessage(payload);
-  } else {
-    console.error("Native app connection is not available");
-    // Optionally, you could try to reconnect here
-    connectToNativeApp();
-    // And then send the message after a short delay
-    setTimeout(() => {
-      if (port) {
-        port.postMessage(payload);
-      } else {
-        console.error("Failed to reconnect to native app");
-      }
-    }, 1000);
-  }
-}
-
-/*
-On a click on the browser action, reconnect to the native app and send the current tab's main content to the app.
-*/
-browser.browserAction.onClicked.addListener(async () => {
-  connectToNativeApp(); // Reconnect to the native app
-  let tabs = await browser.tabs.query({active: true, currentWindow: true});
-  if (tabs.length > 0) {
-    requestingTabId = tabs[0].id; // Store the tab ID
-    let content = await getCurrentTabContent();
-    if (content) {
-      sendContentToApp(content, "musical"); // Default to musical song type
-      startTimer(); // Start the timer when the button is clicked
-    } else {
-      console.log("Failed to get main content from current tab");
-    }
-  }
+  
+  requestingTabId = tab.id;
+  
+  const audioUrl = await generateSongFromArticle(content.text, songStyle, tab.title);
+  await forwardAudioUrlToContentScript(audioUrl);
 });
 
-/*
-Inject a content script to get the page text
-*/
-browser.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
-  if (changeInfo.status === 'complete') {
-    browser.tabs.executeScript(tabId, {
-      file: "content_script.js"
-    });
+// Browser action click (default to musical)
+browser.browserAction.onClicked.addListener(async (tab) => {
+  const content = await getCurrentTabContent();
+  if (!content) {
+    Logger.error('Failed to get page content from tab');
+    return;
   }
+  
+  requestingTabId = tab.id;
+  
+  const audioUrl = await generateSongFromArticle(content.text, "musical", tab.title);
+  await forwardAudioUrlToContentScript(audioUrl);
 });
 
-// Add a listener for storage changes to update the API keys
-browser.storage.onChanged.addListener((changes, area) => {
-  if (area === 'sync') {
-    if (changes.anthropic_api_key) {
-      ANTHROPIC_API_KEY = changes.anthropic_api_key.newValue;
-    }
-    if (changes.piapi_key) {
-      PIAPI_KEY = changes.piapi_key.newValue;
-    }
-  }
-});
+Logger.success('Background script ready! All systems initialized. [VERSION: 2024-11-23-03:28]');

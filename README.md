@@ -1,36 +1,183 @@
 # Article Song
 
-A project to create a browser plugin that will take the text of your current page and send it to an AI music generation service, to create a song based on the text of the article.
+A browser extension that converts articles into songs using AI!
 
-## LLM Configuration
+## 🎵 What It Does
 
-This project uses **litellm** to call Claude Sonnet 4.5 (`anthropic/claude-sonnet-4-5-20250929`) for generating song lyrics and style tags.
+1. Click the extension button on any webpage
+2. Extension extracts the article text
+3. Claude AI generates custom lyrics based on the content
+4. Suno AI creates a song from those lyrics
+5. Audio plays directly in your browser!
 
-## Setup
+## 🏗️ Architecture (v2.0 - Browser-Only)
 
-### Requirements
-Install Python dependencies:
-```bash
-pip install -r requirements.txt
+**No Python backend needed!** Everything runs in the browser extension:
+
+```
+Article Text → Claude API (lyrics) → SunoAPI.org (music) → Audio Player
 ```
 
-### API Keys
-You'll need:
-- **Anthropic API Key**: For Claude Sonnet 4.5 (get from https://console.anthropic.com/)
-- **PIAPI Key**: For Suno music generation
+## ⚙️ Setup
 
-Configure your API keys in the browser extension options page.
+### 1. Get Your API Keys
 
-### Installation Steps
-1. Copy the native messaging host manifest:
-   ```bash
-   sudo cp app/article_singer.json /usr/lib/mozilla/native-messaging-hosts/
-   ```
-2. Load the extension:
-   - Go to `about:debugging#/runtime/this-firefox`
-   - Add the `manifest.json` file as a Temporary Extension
-3. Visit any website and click the extension button to generate a song!
+You need TWO API keys:
 
-## Music Generation
+**Anthropic API Key** (for Claude):
+- Go to https://console.anthropic.com/
+- Create an account and get your API key
+- Cost: ~$0.01-0.05 per song (lyrics generation)
 
-Uses https://suno.gcui.art/ to access Suno's music generation API.
+**SunoAPI Key** (for music generation):
+- Go to https://sunoapi.org/pricing
+- Sign up and get your API key
+- Cost: ~$0.02 per song
+- **Total cost per song: $0.03-0.07** ✅
+
+### 2. Install the Extension
+
+**Firefox:**
+1. Open Firefox
+2. Go to `about:debugging#/runtime/this-firefox`
+3. Click "Load Temporary Add-on"
+4. Select `add-on/manifest.json`
+
+**Chrome** (if you update to Manifest V3):
+1. Go to `chrome://extensions/`
+2. Enable "Developer mode"
+3. Click "Load unpacked"
+4. Select the `add-on/` folder
+
+### 3. Configure API Keys
+
+1. Click the extension options (right-click extension icon → Options)
+2. Paste your Anthropic API key
+3. Paste your SunoAPI key
+4. Click "Save Settings"
+
+## 🎤 Song Styles
+
+Choose from the context menu (right-click extension button):
+
+- **Musical Song** (default) - Traditional song structure with verses and chorus
+- **Spoken Word** - Rhythmic spoken-word style
+- **Meme Song** - Humorous and viral-worthy
+- **Cute Song** - Light-hearted and positive
+- **Informative Song** - Educational, fact-focused
+- **Use Page Text as Lyrics** - Uses article text directly (no AI rewriting)
+
+## 📁 Project Structure
+
+```
+add-on/
+├── manifest.json       # Extension configuration
+├── background.js       # Main logic (API calls, orchestration)
+├── prompts.js          # Battle-tested prompts for lyrics generation
+├── content_script.js   # Page interaction and audio playback
+├── options.html/js     # Settings page for API keys
+├── Readability.js      # Article text extraction library
+└── icons/              # Extension icons
+
+old-python-backend/     # Archived Python version (for reference)
+test-extension/         # Minimal test extension
+tests/                  # Test suites
+```
+
+## 🚀 Usage
+
+### Quick Start:
+1. Navigate to any article (Wikipedia, blog post, news site, etc.)
+2. Click the Article Song extension button
+3. Wait ~30-60 seconds
+4. Song plays automatically!
+
+### Custom Song Style:
+1. Right-click the extension button
+2. Choose song style from menu
+3. Wait for generation
+4. Enjoy your custom song!
+
+## 💰 Cost Comparison
+
+| Version | Cost per Song | Setup Complexity | Shareability |
+|---------|---------------|------------------|--------------|
+| **v2.0 (Current)** | $0.03-0.07 | Low (2 API keys) | ✅ Easy |
+| v1.0 (Python + PIAPI) | $15/mo + credits | High (Python + native messaging) | ❌ Hard |
+
+## 🛠️ Development
+
+### Testing
+```bash
+# Run unit tests
+npm test
+
+# Run E2E tests (requires manual trigger)
+npm run test:e2e
+```
+
+### Debugging
+1. Open Browser Console (Ctrl+Shift+J)
+2. Look for messages starting with 🎵, 🎤, 🎨
+3. All API calls and state changes are logged
+
+## 📝 What Changed from v1.0?
+
+### Removed:
+- ❌ Python backend (`app/`)
+- ❌ Native messaging setup
+- ❌ PIAPI dependency
+- ❌ Complex installation process
+
+### Added:
+- ✅ Direct API calls from browser
+- ✅ SunoAPI.org integration (proven 100% uptime)
+- ✅ Simplified setup (just 2 API keys)
+- ✅ Better error handling and logging
+- ✅ Easier to share with friends!
+
+## 🐛 Troubleshooting
+
+### "API key not configured"
+- Go to extension options and enter your API keys
+
+### "Anthropic API error: 401"
+- Your Anthropic API key is invalid or expired
+- Get a new one from console.anthropic.com
+
+### "Suno API error: 402"
+- You need to add credits to your SunoAPI account
+- Go to sunoapi.org and top up
+
+### Song takes too long
+- Normal generation time is 30-60 seconds
+- If it times out (4 minutes), check your SunoAPI credits
+
+### Audio doesn't play
+- Check browser console for errors
+- Make sure you're on a valid article page (not a PDF or image)
+- Try reloading the page and clicking the extension again
+
+## 🎯 Sharing with Friends
+
+Friends can use this extension easily:
+1. Send them the `add-on/` folder (or GitHub link)
+2. They load it in Firefox
+3. They get their own API keys (5 minutes)
+4. Done!
+
+No Python, no native messaging, no complex setup. Just works! ✨
+
+## 📚 Old Python Backend
+
+The original Python backend is archived in `old-python-backend/` for reference. It contains the original prompts and logic that we ported to JavaScript.
+
+## 🏆 Credits
+
+- **Readability.js** - Mozilla's article extraction library
+- **Claude (Anthropic)** - Lyrics generation
+- **Suno AI** (via SunoAPI.org) - Music generation
+
+---
+
+**Stay the course!** 🎸

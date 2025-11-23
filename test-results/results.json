@@ -1,0 +1,325 @@
+{
+  "config": {
+    "configFile": "/home/keenan/Dev/articlesong/playwright.config.js",
+    "rootDir": "/home/keenan/Dev/articlesong/tests/e2e",
+    "forbidOnly": false,
+    "fullyParallel": false,
+    "globalSetup": null,
+    "globalTeardown": null,
+    "globalTimeout": 0,
+    "grep": {},
+    "grepInvert": null,
+    "maxFailures": 0,
+    "metadata": {
+      "actualWorkers": 1
+    },
+    "preserveOutput": "always",
+    "reporter": [
+      [
+        "html",
+        null
+      ],
+      [
+        "list",
+        null
+      ],
+      [
+        "json",
+        {
+          "outputFile": "test-results/results.json"
+        }
+      ]
+    ],
+    "reportSlowTests": {
+      "max": 5,
+      "threshold": 300000
+    },
+    "quiet": false,
+    "projects": [
+      {
+        "outputDir": "/home/keenan/Dev/articlesong/test-results",
+        "repeatEach": 1,
+        "retries": 0,
+        "metadata": {
+          "actualWorkers": 1
+        },
+        "id": "chromium",
+        "name": "chromium",
+        "testDir": "/home/keenan/Dev/articlesong/tests/e2e",
+        "testIgnore": [],
+        "testMatch": [
+          "**/*.@(spec|test).?(c|m)[jt]s?(x)"
+        ],
+        "timeout": 300000
+      },
+      {
+        "outputDir": "/home/keenan/Dev/articlesong/test-results",
+        "repeatEach": 1,
+        "retries": 0,
+        "metadata": {
+          "actualWorkers": 1
+        },
+        "id": "firefox",
+        "name": "firefox",
+        "testDir": "/home/keenan/Dev/articlesong/tests/e2e",
+        "testIgnore": [],
+        "testMatch": [
+          "**/*.@(spec|test).?(c|m)[jt]s?(x)"
+        ],
+        "timeout": 300000
+      }
+    ],
+    "shard": null,
+    "updateSnapshots": "missing",
+    "updateSourceMethod": "patch",
+    "version": "1.56.1",
+    "workers": 1,
+    "webServer": null
+  },
+  "suites": [
+    {
+      "title": "suno-integration.spec.js",
+      "file": "suno-integration.spec.js",
+      "column": 0,
+      "line": 0,
+      "specs": [],
+      "suites": [
+        {
+          "title": "Article Song - Suno Integration (Firefox)",
+          "file": "suno-integration.spec.js",
+          "line": 78,
+          "column": 6,
+          "specs": [
+            {
+              "title": "should generate song from article content using Suno API",
+              "ok": false,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 300000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "failed",
+                      "duration": 0,
+                      "error": {
+                        "message": "Error: browserType.launch: Executable doesn't exist at /home/keenan/.cache/ms-playwright/firefox-1495/firefox/firefox\n╔═════════════════════════════════════════════════════════════════════════╗\n║ Looks like Playwright Test or Playwright was just installed or updated. ║\n║ Please run the following command to download new browsers:              ║\n║                                                                         ║\n║     npx playwright install                                              ║\n║                                                                         ║\n║ <3 Playwright Team                                                      ║\n╚═════════════════════════════════════════════════════════════════════════╝",
+                        "stack": "Error: browserType.launch: Executable doesn't exist at /home/keenan/.cache/ms-playwright/firefox-1495/firefox/firefox\n╔═════════════════════════════════════════════════════════════════════════╗\n║ Looks like Playwright Test or Playwright was just installed or updated. ║\n║ Please run the following command to download new browsers:              ║\n║                                                                         ║\n║     npx playwright install                                              ║\n║                                                                         ║\n║ <3 Playwright Team                                                      ║\n╚═════════════════════════════════════════════════════════════════════════╝\n    at /home/keenan/Dev/articlesong/tests/e2e/suno-integration.spec.js:90:29",
+                        "location": {
+                          "file": "/home/keenan/Dev/articlesong/tests/e2e/suno-integration.spec.js",
+                          "column": 29,
+                          "line": 90
+                        },
+                        "snippet": "  88 |     \n  89 |     // Launch Firefox with the extension loaded\n> 90 |     browser = await firefox.launch({\n     |                             ^\n  91 |       headless: false, // Can't load extensions in headless mode\n  92 |       args: [\n  93 |         '--width=1280',"
+                      },
+                      "errors": [
+                        {
+                          "location": {
+                            "file": "/home/keenan/Dev/articlesong/tests/e2e/suno-integration.spec.js",
+                            "column": 29,
+                            "line": 90
+                          },
+                          "message": "Error: browserType.launch: Executable doesn't exist at /home/keenan/.cache/ms-playwright/firefox-1495/firefox/firefox\n╔═════════════════════════════════════════════════════════════════════════╗\n║ Looks like Playwright Test or Playwright was just installed or updated. ║\n║ Please run the following command to download new browsers:              ║\n║                                                                         ║\n║     npx playwright install                                              ║\n║                                                                         ║\n║ <3 Playwright Team                                                      ║\n╚═════════════════════════════════════════════════════════════════════════╝\n\n  88 |     \n  89 |     // Launch Firefox with the extension loaded\n> 90 |     browser = await firefox.launch({\n     |                             ^\n  91 |       headless: false, // Can't load extensions in headless mode\n  92 |       args: [\n  93 |         '--width=1280',\n    at /home/keenan/Dev/articlesong/tests/e2e/suno-integration.spec.js:90:29"
+                        }
+                      ],
+                      "stdout": [
+                        {
+                          "text": "🦊 Launching Firefox with extension...\n"
+                        }
+                      ],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2025-11-23T02:15:52.991Z",
+                      "annotations": [],
+                      "attachments": [],
+                      "errorLocation": {
+                        "file": "/home/keenan/Dev/articlesong/tests/e2e/suno-integration.spec.js",
+                        "column": 29,
+                        "line": 90
+                      }
+                    }
+                  ],
+                  "status": "unexpected"
+                }
+              ],
+              "id": "1a1f07b9d00d4fcd1509-ad6c9ab8913cd533fb28",
+              "file": "suno-integration.spec.js",
+              "line": 109,
+              "column": 3
+            },
+            {
+              "title": "should generate song from article content using Suno API",
+              "ok": false,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 300000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "firefox",
+                  "projectName": "firefox",
+                  "results": [
+                    {
+                      "workerIndex": 1,
+                      "parallelIndex": 0,
+                      "status": "failed",
+                      "duration": 0,
+                      "error": {
+                        "message": "Error: browserType.launch: Executable doesn't exist at /home/keenan/.cache/ms-playwright/firefox-1495/firefox/firefox\n╔═════════════════════════════════════════════════════════════════════════╗\n║ Looks like Playwright Test or Playwright was just installed or updated. ║\n║ Please run the following command to download new browsers:              ║\n║                                                                         ║\n║     npx playwright install                                              ║\n║                                                                         ║\n║ <3 Playwright Team                                                      ║\n╚═════════════════════════════════════════════════════════════════════════╝",
+                        "stack": "Error: browserType.launch: Executable doesn't exist at /home/keenan/.cache/ms-playwright/firefox-1495/firefox/firefox\n╔═════════════════════════════════════════════════════════════════════════╗\n║ Looks like Playwright Test or Playwright was just installed or updated. ║\n║ Please run the following command to download new browsers:              ║\n║                                                                         ║\n║     npx playwright install                                              ║\n║                                                                         ║\n║ <3 Playwright Team                                                      ║\n╚═════════════════════════════════════════════════════════════════════════╝\n    at /home/keenan/Dev/articlesong/tests/e2e/suno-integration.spec.js:90:29",
+                        "location": {
+                          "file": "/home/keenan/Dev/articlesong/tests/e2e/suno-integration.spec.js",
+                          "column": 29,
+                          "line": 90
+                        },
+                        "snippet": "  88 |     \n  89 |     // Launch Firefox with the extension loaded\n> 90 |     browser = await firefox.launch({\n     |                             ^\n  91 |       headless: false, // Can't load extensions in headless mode\n  92 |       args: [\n  93 |         '--width=1280',"
+                      },
+                      "errors": [
+                        {
+                          "location": {
+                            "file": "/home/keenan/Dev/articlesong/tests/e2e/suno-integration.spec.js",
+                            "column": 29,
+                            "line": 90
+                          },
+                          "message": "Error: browserType.launch: Executable doesn't exist at /home/keenan/.cache/ms-playwright/firefox-1495/firefox/firefox\n╔═════════════════════════════════════════════════════════════════════════╗\n║ Looks like Playwright Test or Playwright was just installed or updated. ║\n║ Please run the following command to download new browsers:              ║\n║                                                                         ║\n║     npx playwright install                                              ║\n║                                                                         ║\n║ <3 Playwright Team                                                      ║\n╚═════════════════════════════════════════════════════════════════════════╝\n\n  88 |     \n  89 |     // Launch Firefox with the extension loaded\n> 90 |     browser = await firefox.launch({\n     |                             ^\n  91 |       headless: false, // Can't load extensions in headless mode\n  92 |       args: [\n  93 |         '--width=1280',\n    at /home/keenan/Dev/articlesong/tests/e2e/suno-integration.spec.js:90:29"
+                        }
+                      ],
+                      "stdout": [
+                        {
+                          "text": "🦊 Launching Firefox with extension...\n"
+                        }
+                      ],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2025-11-23T02:15:53.580Z",
+                      "annotations": [],
+                      "attachments": [],
+                      "errorLocation": {
+                        "file": "/home/keenan/Dev/articlesong/tests/e2e/suno-integration.spec.js",
+                        "column": 29,
+                        "line": 90
+                      }
+                    }
+                  ],
+                  "status": "unexpected"
+                }
+              ],
+              "id": "1a1f07b9d00d4fcd1509-1a1fc5ddc20908d61480",
+              "file": "suno-integration.spec.js",
+              "line": 109,
+              "column": 3
+            }
+          ]
+        },
+        {
+          "title": "Article Song - Suno Integration (Chrome)",
+          "file": "suno-integration.spec.js",
+          "line": 159,
+          "column": 6,
+          "specs": [
+            {
+              "title": "should generate song from article content using Suno API (Chrome)",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 300000,
+                  "annotations": [
+                    {
+                      "type": "skip",
+                      "location": {
+                        "file": "/home/keenan/Dev/articlesong/tests/e2e/suno-integration.spec.js",
+                        "line": 193,
+                        "column": 8
+                      }
+                    }
+                  ],
+                  "expectedStatus": "skipped",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": -1,
+                      "parallelIndex": -1,
+                      "status": "skipped",
+                      "duration": 0,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2025-11-23T02:15:53.057Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "skipped"
+                }
+              ],
+              "id": "1a1f07b9d00d4fcd1509-31b91fb50647a2c23a74",
+              "file": "suno-integration.spec.js",
+              "line": 193,
+              "column": 8
+            },
+            {
+              "title": "should generate song from article content using Suno API (Chrome)",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 300000,
+                  "annotations": [
+                    {
+                      "type": "skip",
+                      "location": {
+                        "file": "/home/keenan/Dev/articlesong/tests/e2e/suno-integration.spec.js",
+                        "line": 193,
+                        "column": 8
+                      }
+                    }
+                  ],
+                  "expectedStatus": "skipped",
+                  "projectId": "firefox",
+                  "projectName": "firefox",
+                  "results": [
+                    {
+                      "workerIndex": -1,
+                      "parallelIndex": -1,
+                      "status": "skipped",
+                      "duration": 0,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2025-11-23T02:15:53.652Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "skipped"
+                }
+              ],
+              "id": "1a1f07b9d00d4fcd1509-0f3c949c03c9c1eae8c2",
+              "file": "suno-integration.spec.js",
+              "line": 193,
+              "column": 8
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "errors": [],
+  "stats": {
+    "startTime": "2025-11-23T02:15:52.427Z",
+    "duration": 1246.203,
+    "expected": 0,
+    "skipped": 2,
+    "unexpected": 2,
+    "flaky": 0
+  }
+}
