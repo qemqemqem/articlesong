@@ -7,6 +7,7 @@ set -e
 
 CHROME_DIR="add-on-chrome"
 OUTPUT_FILE="articlesong-chrome.zip"
+PROJECT_ROOT="$(pwd)"
 
 echo "📦 Packaging ArticleSong for Chrome Web Store..."
 
@@ -36,16 +37,15 @@ rm -f package.json package-lock.json
 # Remove old songify icons (if any exist)
 rm -f icons/songify*.png
 
-# Create zip
-cd ..
-ZIP_NAME=$(basename "$TEMP_DIR")
-cd "$TEMP_DIR"
-zip -r "../$ZIP_NAME.zip" .
-mv "../$ZIP_NAME.zip" "$OLDPWD/$OUTPUT_FILE"
+# Create zip in project root
+echo "📦 Creating zip file..."
+zip -r "$PROJECT_ROOT/$OUTPUT_FILE" .
 
 # Clean up temp directory
-cd "$OLDPWD"
 rm -rf "$TEMP_DIR"
+
+# Back to project root
+cd "$PROJECT_ROOT"
 
 echo "✅ Package created: $OUTPUT_FILE"
 echo ""
@@ -60,4 +60,3 @@ echo "2. Create new item or update existing"
 echo "3. Upload $OUTPUT_FILE"
 echo "4. Fill in store listing details"
 echo "5. Submit for review"
-
