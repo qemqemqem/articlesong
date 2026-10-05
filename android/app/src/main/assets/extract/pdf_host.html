@@ -1,0 +1,22 @@
+<!doctype html>
+<!-- Runs the add-on's pdf.js wrapper (assets/addon/, copied at build time) on the PDF served at /pdf/document.pdf. -->
+<meta charset="utf-8">
+<script>
+  // Report script/asset failures instead of leaving the app waiting for a result.
+  window.addEventListener('error', e =>
+    ArticleSongBridge.postMessage(JSON.stringify({ ok: false, error: String(e.message || 'script error') })));
+</script>
+<script src="../addon/vendor/pdfjs/pdf.min.js"></script>
+<script src="../addon/pdf.js"></script>
+<script>
+  pdfjsLib.GlobalWorkerOptions.workerSrc = '../addon/vendor/pdfjs/pdf.worker.min.js';
+  (async () => {
+    try {
+      const response = await fetch('/pdf/document.pdf');
+      const text = await PdfText.extractText(new Uint8Array(await response.arrayBuffer()));
+      ArticleSongBridge.postMessage(JSON.stringify({ ok: true, text }));
+    } catch (e) {
+      ArticleSongBridge.postMessage(JSON.stringify({ ok: false, error: String((e && e.message) || e) }));
+    }
+  })();
+</script>

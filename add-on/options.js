@@ -1,286 +1,229 @@
+// Settings page: every change saves on its own; keys can be tested against the real APIs.
+
 // Validation helpers
 function validateAnthropicKey(key) {
-  // Anthropic key is now optional - if empty, that's valid
+  // Anthropic key is optional - if empty, that's valid
   if (!key) return { valid: true, message: '' };
-  if (!key.startsWith('sk-ant-')) return { valid: false, message: 'Key should start with sk-ant-' };
-  if (key.length < 20) return { valid: false, message: 'Key appears too short' };
+  if (!key.startsWith('sk-ant-')) return { valid: false, message: 'Anthropic keys start with sk-ant-' };
+  if (key.length < 20) return { valid: false, message: 'That key looks too short' };
   return { valid: true, message: '' };
 }
 
 function validateSunoKey(key) {
-  if (!key) return { valid: false, message: 'API key is required' };
-  if (key.length < 10) return { valid: false, message: 'Key appears too short' };
+  if (!key) return { valid: false, message: 'A SunoAPI key is required to make songs' };
+  if (key.length < 10) return { valid: false, message: 'That key looks too short' };
   return { valid: true, message: '' };
 }
 
 function showValidationMessage(inputId, message) {
   const validationEl = document.getElementById(`${inputId.replace('_api_key', '')}-validation`);
-  if (validationEl) {
-    validationEl.textContent = message;
-    validationEl.classList.add('show');
-  }
-}
-
-function hideValidationMessage(inputId) {
-  const validationEl = document.getElementById(`${inputId.replace('_api_key', '')}-validation`);
-  if (validationEl) {
-    validationEl.classList.remove('show');
-  }
+  validationEl.textContent = message;
+  validationEl.classList.toggle('show', !!message);
 }
 
 function showStatus(message, isSuccess = true) {
   const status = document.getElementById('status');
   status.textContent = message;
-  status.className = 'status show ' + (isSuccess ? 'success' : 'error');
-  
-  setTimeout(() => {
-    status.classList.remove('show');
-  }, 3000);
+  status.className = 'saved-toast show' + (isSuccess ? '' : ' error');
+  clearTimeout(showStatus.timer);
+  showStatus.timer = setTimeout(() => status.classList.remove('show'), isSuccess ? 1600 : 4000);
 }
 
-function updateInputVisuals() {
-  const inputs = ['anthropic_api_key', 'suno_api_key'];
-  inputs.forEach(id => {
-    const input = document.getElementById(id);
-    if (input.value.trim()) {
-      input.classList.add('filled');
-    } else {
-      input.classList.remove('filled');
-    }
-  });
+// ============================================================================
+// Saving: keys go to sync storage, everything else to local settings
+// ============================================================================
+
+async function saveKey(id) {
+  const value = document.getElementById(id).value.trim();
+  const validation = id === 'anthropic_api_key' ? validateAnthropicKey(value) : validateSunoKey(value);
+  showValidationMessage(id, validation.valid ? '' : validation.message);
+  if (!validation.valid) return;
+  try {
+    await browser.storage.sync.set({ [id]: value });
+    showStatus('Saved');
+    testKey(id === 'suno_api_key' ? 'suno' : 'anthropic');
+  } catch (error) {
+    showStatus('Could not save: ' + error.message, false);
+  }
 }
 
-function saveOptions(e) {
-  e.preventDefault();
-  
-  const anthropicKey = document.getElementById('anthropic_api_key').value.trim();
-  const sunoKey = document.getElementById('suno_api_key').value.trim();
+async function saveSettings() {
   const autoDownload = document.getElementById('auto_download').checked;
-  const downloadOnly = document.getElementById('download_only').checked;
-  const downloadDirectory = document.getElementById('download_directory').value.trim();
-  const sunoModel = document.getElementById('suno_model').value;
-  
-  // Validate
-  const anthropicValidation = validateAnthropicKey(anthropicKey);
-  const sunoValidation = validateSunoKey(sunoKey);
-  
-  // Clear previous validation messages
-  hideValidationMessage('anthropic_api_key');
-  hideValidationMessage('suno_api_key');
-  
-  // Anthropic is optional, but if provided must be valid
-  if (anthropicKey && !anthropicValidation.valid) {
-    showValidationMessage('anthropic_api_key', anthropicValidation.message);
-    showStatus('Please fix validation errors', false);
-    return;
+  try {
+    const { settings = {} } = await browser.storage.local.get('settings');
+    Object.assign(settings, {
+      autoDownload,
+      downloadOnly: document.getElementById('download_only').checked && autoDownload,
+      downloadDirectory: document.getElementById('download_directory').value.trim(),
+      sunoModel: document.getElementById('suno_model').value,
+      claudeModel: document.getElementById('claude_model').value.trim(),
+      maxConcurrent: Number(document.getElementById('max_concurrent').value) || 1
+    });
+    await browser.storage.local.set({ settings });
+    showStatus('Saved');
+  } catch (error) {
+    showStatus('Could not save: ' + error.message, false);
   }
-  
-  // Suno is required
-  if (!sunoValidation.valid) {
-    showValidationMessage('suno_api_key', sunoValidation.message);
-    showStatus('Please fix validation errors', false);
-    return;
-  }
-  
-  // Disable button while saving
-  const saveBtn = document.getElementById('save');
-  const originalText = saveBtn.textContent;
-  saveBtn.disabled = true;
-  saveBtn.textContent = 'Saving...';
-  
-  // Save API keys to sync storage
-  const syncPromise = browser.storage.sync.set({
-    anthropic_api_key: anthropicKey,
-    suno_api_key: sunoKey
-  });
-  
-  // Save settings to local storage
-  const localPromise = browser.storage.local.get('settings').then((result) => {
-    const settings = result.settings || {};
-    settings.autoDownload = autoDownload;
-    settings.downloadOnly = downloadOnly && autoDownload; // Only save if auto-download is enabled
-    settings.downloadDirectory = downloadDirectory;
-    settings.sunoModel = sunoModel;
-    return browser.storage.local.set({ settings });
-  });
-  
-  Promise.all([syncPromise, localPromise]).then(() => {
-    showStatus('Settings saved successfully!', true);
-    saveBtn.disabled = false;
-    saveBtn.textContent = originalText;
-    updateInputVisuals();
-  }).catch((error) => {
-    showStatus('Failed to save: ' + error.message, false);
-    saveBtn.disabled = false;
-    saveBtn.textContent = originalText;
-  });
 }
 
 function restoreOptions() {
-  // Load API keys from sync storage
   const syncPromise = browser.storage.sync.get(['anthropic_api_key', 'suno_api_key']).then((result) => {
     document.getElementById('anthropic_api_key').value = result.anthropic_api_key || '';
     document.getElementById('suno_api_key').value = result.suno_api_key || '';
   });
-  
-  // Load settings from local storage
+
   const localPromise = browser.storage.local.get(['settings', 'settingsError']).then((result) => {
     const settings = result.settings || {};
     document.getElementById('auto_download').checked = settings.autoDownload || false;
     document.getElementById('download_only').checked = settings.downloadOnly || false;
-    
-    // Enable/disable download_only based on auto_download
     updateDownloadOnlyState();
-    
+
     // Show actual value - could be empty string, undefined (use default), or a custom value
-    document.getElementById('download_directory').value = 
+    document.getElementById('download_directory').value =
       settings.downloadDirectory !== undefined ? settings.downloadDirectory : 'ArticleSongs';
-    // Set model - default to V5 if not set
-    document.getElementById('suno_model').value = settings.sunoModel || 'V5';
-    
-    // Check for error message from background script
+    document.getElementById('suno_model').value = settings.sunoModel || 'V6';
+    document.getElementById('claude_model').value = settings.claudeModel || '';
+    document.getElementById('max_concurrent').value = String(settings.maxConcurrent || 1);
+
+    // Error sent by the background script (e.g. a key was rejected)
     if (result.settingsError) {
       showErrorAlert(result.settingsError);
-      // Clear the error after showing it
       browser.storage.local.remove('settingsError');
     }
   });
-  
-  Promise.all([syncPromise, localPromise]).then(() => {
-    updateInputVisuals();
-  }).catch(console.error);
+
+  return Promise.all([syncPromise, localPromise]);
 }
 
+// ============================================================================
+// Key tests: a real (free) call that proves the key works
+// ============================================================================
+
+const KEY_TESTS = {
+  suno: {
+    input: 'suno_api_key', result: 'suno-result', button: 'test-suno', action: 'testSunoKey',
+    ok: r => r.credits >= 1
+      ? `✓ Connected · ${Math.floor(r.credits).toLocaleString()} credits left`
+      : '✓ Connected, but you have no credits left. Add credits to make songs.',
+    warn: r => !(r.credits >= 1)
+  },
+  anthropic: {
+    input: 'anthropic_api_key', result: 'anthropic-result', button: 'test-anthropic', action: 'testAnthropicKey',
+    ok: r => `✓ Connected · lyrics will use ${r.model}`,
+    warn: () => false
+  }
+};
+
+async function testKey(which) {
+  const test = KEY_TESTS[which];
+  const key = document.getElementById(test.input).value.trim();
+  const result = document.getElementById(test.result);
+  const button = document.getElementById(test.button);
+  if (!key) {
+    result.className = 'check-result pending';
+    result.textContent = which === 'anthropic'
+      ? 'No key: SunoAPI writes the lyrics.'
+      : 'Not connected yet: paste your key, then press Test.';
+    return;
+  }
+  button.disabled = true;
+  button.textContent = 'Testing...';
+  result.className = 'check-result pending';
+  result.textContent = 'Checking the key...';
+  try {
+    const response = await browser.runtime.sendMessage({ action: test.action, key });
+    if (!response || !response.success) throw new Error(response ? response.error : 'No answer from the extension');
+    result.className = 'check-result ' + (test.warn(response) ? 'error' : 'ok');
+    result.textContent = test.ok(response);
+  } catch (error) {
+    result.className = 'check-result error';
+    result.textContent = `✗ ${error.message}`;
+  } finally {
+    button.disabled = !document.getElementById(test.input).value.trim();
+    button.textContent = 'Test';
+  }
+}
+
+// ============================================================================
+// Page wiring
+// ============================================================================
+
 function showErrorAlert(errorType) {
-  const errorAlert = document.getElementById('error-alert');
-  const errorTitle = document.getElementById('error-title');
-  const errorMessage = document.getElementById('error-message');
-  
   const errorMessages = {
     'anthropic_invalid': {
-      title: 'Invalid Anthropic API Key',
-      message: 'The Anthropic API key you entered appears to be invalid or has been revoked. Please check your key and try again.'
+      title: 'Your Anthropic key was rejected',
+      message: 'It may be mistyped or revoked. Paste a working key below, or clear it to let SunoAPI write the lyrics.'
     },
     'suno_missing': {
-      title: 'SunoAPI Key Required',
-      message: 'You need to enter your SunoAPI key below to generate music. Get your key from sunoapi.org'
+      title: 'Add your SunoAPI key to make songs',
+      message: 'SunoAPI makes the music. Get a key at sunoapi.org and paste it below.'
     },
     'suno_invalid': {
-      title: 'Invalid SunoAPI Key',
-      message: 'The SunoAPI key you entered appears to be invalid or has been revoked. Please check your key and try again.'
+      title: 'Your SunoAPI key was rejected',
+      message: 'It may be mistyped or revoked. Paste a working key below and press Test.'
     }
   };
-  
+
   const error = errorMessages[errorType];
-  if (error) {
-    errorTitle.textContent = error.title;
-    errorMessage.textContent = error.message;
-    errorAlert.style.display = 'block';
-    
-    // Focus the appropriate input field
-    if (errorType.startsWith('anthropic')) {
-      document.getElementById('anthropic_api_key').focus();
-      document.getElementById('anthropic_api_key').select();
-    } else if (errorType.startsWith('suno')) {
-      document.getElementById('suno_api_key').focus();
-      document.getElementById('suno_api_key').select();
-    }
-  }
+  if (!error) return;
+  document.getElementById('error-title').textContent = error.title;
+  document.getElementById('error-message').textContent = error.message;
+  document.getElementById('error-alert').style.display = 'block';
+  const input = document.getElementById(errorType.startsWith('anthropic') ? 'anthropic_api_key' : 'suno_api_key');
+  input.focus();
+  input.select();
 }
 
 function setupPasswordToggles() {
   document.querySelectorAll('.toggle-password').forEach(button => {
     button.addEventListener('click', () => {
-      const targetId = button.getAttribute('data-target');
-      const input = document.getElementById(targetId);
-      
-      if (input.type === 'password') {
-        input.type = 'text';
-        button.textContent = 'hide';
-      } else {
-        input.type = 'password';
-        button.textContent = 'show';
-      }
+      const input = document.getElementById(button.getAttribute('data-target'));
+      const reveal = input.type === 'password';
+      input.type = reveal ? 'text' : 'password';
+      button.textContent = reveal ? 'Hide' : 'Show';
     });
-  });
-}
-
-function setupInputListeners() {
-  const inputs = ['anthropic_api_key', 'suno_api_key'];
-  inputs.forEach(id => {
-    const input = document.getElementById(id);
-    input.addEventListener('input', updateInputVisuals);
-    input.addEventListener('blur', () => {
-      // Validate on blur
-      const value = input.value.trim();
-      if (value) {
-        const validation = id === 'anthropic_api_key' 
-          ? validateAnthropicKey(value)
-          : validateSunoKey(value);
-        
-        if (!validation.valid) {
-          showValidationMessage(id, validation.message);
-        } else {
-          hideValidationMessage(id);
-        }
-      }
-    });
-  });
-}
-
-function setupKeyboardShortcuts() {
-  document.addEventListener('keydown', (e) => {
-    // Ctrl+S or Cmd+S to save
-    if ((e.ctrlKey || e.metaKey) && e.key === 's') {
-      e.preventDefault();
-      document.getElementById('save').click();
-    }
   });
 }
 
 function updateDownloadOnlyState() {
-  const autoDownloadCheckbox = document.getElementById('auto_download');
-  const downloadOnlyCheckbox = document.getElementById('download_only');
-  const downloadOnlyLabel = document.getElementById('download-only-label');
-  
-  if (autoDownloadCheckbox.checked) {
-    downloadOnlyCheckbox.disabled = false;
-    downloadOnlyLabel.style.opacity = '1';
-    downloadOnlyLabel.style.cursor = 'pointer';
-  } else {
-    downloadOnlyCheckbox.disabled = true;
-    downloadOnlyCheckbox.checked = false;
-    downloadOnlyLabel.style.opacity = '0.5';
-    downloadOnlyLabel.style.cursor = 'not-allowed';
-  }
+  const autoDownload = document.getElementById('auto_download').checked;
+  const downloadOnly = document.getElementById('download_only');
+  downloadOnly.disabled = !autoDownload;
+  if (!autoDownload) downloadOnly.checked = false;
+  document.getElementById('download-only-label').classList.toggle('disabled', !autoDownload);
 }
 
-// Open style editor
 function openStyleEditor() {
   browser.tabs.create({ url: browser.runtime.getURL('styles.html') });
 }
 
-// Initialize
-document.addEventListener('DOMContentLoaded', () => {
-  restoreOptions();
+document.addEventListener('DOMContentLoaded', async () => {
   setupPasswordToggles();
-  setupInputListeners();
-  setupKeyboardShortcuts();
-  document.querySelector('#save').addEventListener('click', saveOptions);
+  await restoreOptions();
+
+  ['suno_api_key', 'anthropic_api_key'].forEach(id => {
+    const input = document.getElementById(id);
+    const testButton = document.getElementById(id === 'suno_api_key' ? 'test-suno' : 'test-anthropic');
+    const syncTestButton = () => { testButton.disabled = !input.value.trim(); };
+    // `change` fires on blur or Enter, so a half-pasted key is never saved
+    input.addEventListener('change', () => saveKey(id));
+    input.addEventListener('input', syncTestButton);
+    syncTestButton();
+  });
+  document.getElementById('test-suno').addEventListener('click', () => testKey('suno'));
+  document.getElementById('test-anthropic').addEventListener('click', () => testKey('anthropic'));
+
+  document.getElementById('auto_download').addEventListener('change', () => {
+    updateDownloadOnlyState();
+    saveSettings();
+  });
+  ['download_only', 'download_directory', 'suno_model', 'claude_model', 'max_concurrent'].forEach(id => {
+    document.getElementById(id).addEventListener('change', saveSettings);
+  });
   document.getElementById('open-style-editor').addEventListener('click', openStyleEditor);
-  
-  // Auto-download checkbox listener
-  document.getElementById('auto_download').addEventListener('change', updateDownloadOnlyState);
-  
-  // Focus first empty field
-  const anthropicInput = document.getElementById('anthropic_api_key');
-  const sunoInput = document.getElementById('suno_api_key');
-  
-  setTimeout(() => {
-    if (!anthropicInput.value) {
-      anthropicInput.focus();
-    } else if (!sunoInput.value) {
-      sunoInput.focus();
-    }
-  }, 100);
+
+  // Show where things stand: test saved keys right away
+  testKey('suno');
+  testKey('anthropic');
+  if (!document.getElementById('suno_api_key').value) document.getElementById('suno_api_key').focus();
 });

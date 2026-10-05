@@ -1,9 +1,15 @@
 /**
- * Lyrics Generation Prompts
- * Modernized for Claude Sonnet 4.5 and Suno AI (2025)
- * 
+ * Lyrics Generation Prompts - the "song recipe"
+ * Modernized for Claude and Suno AI
+ *
  * Updated to use Suno's annotation system and modern prompting techniques.
  * Supports customizable song styles.
+ *
+ * SHARED WITH THE ANDROID APP: android/ runs tools/export-recipe.js at build
+ * time, which loads this file and exports SONG_RECIPE (bottom of file) to JSON.
+ * So: keep prompt TEXT in the constants/templates below ({{PLACEHOLDER}} syntax)
+ * and keep the functions as thin variable-fillers. tests/recipe.test.js writes
+ * golden renders that the Android unit tests compare against.
  */
 
 // ============================================================================
@@ -62,21 +68,21 @@ async function loadCustomStyles() {
     // Not in browser context (e.g., Node.js testing)
     return getDefaultStyles();
   }
-  
+
   try {
     const result = await browser.storage.local.get(['customStyles', 'stylesVersion']);
-    
+
     if (result.customStyles && result.stylesVersion === 1) {
       return result.customStyles;
     }
-    
+
     // No custom styles yet - initialize with defaults
     const defaults = getDefaultStyles();
     await browser.storage.local.set({
       customStyles: defaults,
       stylesVersion: 1
     });
-    
+
     return defaults;
   } catch (error) {
     console.error('Error loading custom styles:', error);
@@ -91,19 +97,19 @@ async function saveCustomStyles(styles) {
   if (typeof browser === 'undefined') {
     throw new Error('Cannot save styles outside browser context');
   }
-  
+
   // Validate we have exactly 6 styles
   if (!Array.isArray(styles) || styles.length !== 6) {
     throw new Error('Must have exactly 6 styles');
   }
-  
+
   // Validate each style
   for (const style of styles) {
     if (!style.id || !style.name || !style.description) {
       throw new Error('Each style must have id, name, and description');
     }
   }
-  
+
   await browser.storage.local.set({
     customStyles: styles,
     stylesVersion: 1
@@ -117,6 +123,41 @@ async function resetStylesToDefaults() {
   const defaults = getDefaultStyles();
   await saveCustomStyles(defaults);
   return defaults;
+}
+
+// ============================================================================
+// TEMPLATE HELPERS
+// ============================================================================
+
+/**
+ * Fill {{NAME}} placeholders in one pass (values are never re-scanned, so
+ * article text containing "{{...}}" is safe). Missing variables throw.
+ */
+function renderTemplate(template, vars) {
+  return template.replace(/\{\{(\w+)\}\}/g, (match, key) => {
+    if (!Object.prototype.hasOwnProperty.call(vars, key)) {
+      throw new Error(`Missing template variable: ${key}`);
+    }
+    return vars[key];
+  });
+}
+
+/**
+ * Normalize a style argument: style objects pass through; legacy string IDs
+ * resolve against DEFAULT_STYLES (unknown IDs fall back to Musical).
+ */
+function resolveStyle(songStyle) {
+  if (typeof songStyle !== 'string') return songStyle;
+  const styleObj = DEFAULT_STYLES.find(s => s.id === songStyle);
+  if (styleObj) return styleObj;
+  console.warn(`Unknown style "${songStyle}", using default`);
+  return DEFAULT_STYLES[1]; // Musical as fallback
+}
+
+// Collapse runs of ASCII whitespace. Deliberately not \s: JS and the JVM disagree on
+// which Unicode characters \s matches, and the Android port must render identically.
+function collapseWhitespace(text) {
+  return text.replace(/[ \t\r\n\f\v]+/g, ' ').replace(/^ /, '').replace(/ $/, '');
 }
 
 // ============================================================================
@@ -178,47 +219,22 @@ The creative direction guides the "what" and "how" - the technical requirements 
 // Legacy export for backward compatibility (uses lyrics prompt)
 const SYSTEM_PROMPT = LYRICS_SYSTEM_PROMPT;
 
-/**
- * Generate the lyrics prompt based on article text and song style
- * @param {string} articleText - The article content to transform
- * @param {object|string} songStyle - Style object with {id, name, description} or legacy string ID
- */
-function getLyricsPrompt(articleText, songStyle) {
-  // Handle legacy string-based calls (backward compatibility)
-  if (typeof songStyle === 'string') {
-    // For "straight" style, return null (use article text directly)
-    if (songStyle === "straight") {
-      return null;
-    }
-    
-    // Try to find the style in defaults by ID
-    const styleObj = DEFAULT_STYLES.find(s => s.id === songStyle);
-    if (styleObj) {
-      songStyle = styleObj;
-    } else {
-      // Fallback - use default style
-      console.warn(`Unknown style "${songStyle}", using default`);
-      songStyle = DEFAULT_STYLES[1]; // Musical as fallback
-    }
-  }
-  
-  // Now songStyle should be an object with {id, name, description}
-  const styleDescription = songStyle.description || "Balanced article-to-song with clear structure and engaging delivery";
-  
-  let prompt = `<task>
+const DEFAULT_STYLE_DESCRIPTION = "Balanced article-to-song with clear structure and engaging delivery";
+
+const LYRICS_PROMPT_TEMPLATE = `<task>
 Write song lyrics based on the article text below, following this creative direction:
 
-"${styleDescription}"
+"{{STYLE_DESCRIPTION}}"
 
 Transform the article content into lyrics that match this style direction.
 </task>
 
 <article_text>
-${articleText}
+{{ARTICLE_TEXT}}
 </article_text>
 
 <requirements>
-CREATIVE DIRECTION: ${styleDescription}
+CREATIVE DIRECTION: {{STYLE_DESCRIPTION}}
 
 Interpret this direction creatively:
 - If it mentions genre (e.g., "Broadway", "Slam Poetry", "Pop"), match that musical aesthetic
@@ -320,8 +336,22 @@ This is: 4 complete sentences (with subjects, verbs, objects), connected logical
 
 Note: Use complete sentences and full thoughts. Be bold, be vivid, be unexpected. Don't play it safe.
 </output_format>`;
-  
-  return prompt;
+
+/**
+ * Generate the lyrics prompt based on article text and song style
+ * @param {string} articleText - The article content to transform
+ * @param {object|string} songStyle - Style object with {id, name, description} or legacy string ID
+ */
+function getLyricsPrompt(articleText, songStyle) {
+  // For "straight" style, return null (use article text directly)
+  if (songStyle === "straight") {
+    return null;
+  }
+  const style = resolveStyle(songStyle);
+  return renderTemplate(LYRICS_PROMPT_TEMPLATE, {
+    STYLE_DESCRIPTION: style.description || DEFAULT_STYLE_DESCRIPTION,
+    ARTICLE_TEXT: articleText
+  });
 }
 
 // ============================================================================
@@ -370,18 +400,14 @@ AVOID CLICHÉS:
 
 BE BOLD AND SPECIFIC. "Melancholic Indie Folk" is boring. "Sparse Appalachian Folk, Mournful, Fingerpicked Banjo, Tape Hiss" paints a picture.`;
 
-/**
- * Generate the style tags prompt based on lyrics and song style
- */
-function getStyleTagsPrompt(lyrics, songStyle) {
-  let prompt = `<task>
+const STYLE_TAGS_PROMPT_TEMPLATE = `<task>
 Based on the song lyrics below, suggest a musical style description for Suno AI.
 
 Apply your knowledge of genre taxonomy, production aesthetics, and psychoacoustics to create a style description that will guide the AI to produce sonically interesting results.
 </task>
 
 <lyrics>
-${lyrics}
+{{LYRICS}}
 </lyrics>
 
 <requirements>
@@ -412,36 +438,107 @@ Good examples that show range and creativity:
 </examples>
 
 <style_context>
-Song style requested: ${songStyle}
-`;
-  
-  if (songStyle === "meme") {
-    prompt += `
-Special note: This is intended as a humorous/viral meme song. Don't be afraid to go wild with the style! Consider: "Hyper-Pop Chaos", "Glitchy Trap Comedy", "Absurdist Electro", "Aggressive Meme Rap", "Deranged Synthwave". You can also do comedic contrast by pairing silly lyrics with serious styles like "Orchestral Epic" or "Dark Industrial".`;
-  } else if (songStyle === "spoken") {
-    prompt += `
-Special note: This should be a spoken word piece. Focus on rhythm and delivery over melody. Go bold: "Raw Hip-Hop", "Aggressive Slam Poetry", "Gritty Beat Poetry", "Intense Storytelling Rap", "Underground Boom Bap", "Experimental Spoken Word". Make it hit hard.`;
-  }
-  
-  prompt += `
+Song style requested: {{STYLE_NAME}}
+{{STYLE_NOTE}}
 </style_context>
 
 Output only the style description (under 200 characters), nothing else.`;
-  
-  return prompt;
+
+// Extra direction for specific style IDs, appended inside <style_context>
+const STYLE_TAG_NOTES = {
+  meme: `Special note: This is intended as a humorous/viral meme song. Don't be afraid to go wild with the style! Consider: "Hyper-Pop Chaos", "Glitchy Trap Comedy", "Absurdist Electro", "Aggressive Meme Rap", "Deranged Synthwave". You can also do comedic contrast by pairing silly lyrics with serious styles like "Orchestral Epic" or "Dark Industrial".`,
+  spoken: `Special note: This should be a spoken word piece. Focus on rhythm and delivery over melody. Go bold: "Raw Hip-Hop", "Aggressive Slam Poetry", "Gritty Beat Poetry", "Intense Storytelling Rap", "Underground Boom Bap", "Experimental Spoken Word". Make it hit hard.`
+};
+
+/**
+ * Generate the style tags prompt based on lyrics and song style
+ * @param {object|string} songStyle - Style object or legacy string ID
+ */
+function getStyleTagsPrompt(lyrics, songStyle) {
+  const styleId = typeof songStyle === 'object' ? songStyle.id : songStyle;
+  const styleName = typeof songStyle === 'object' ? songStyle.name : songStyle;
+  const note = STYLE_TAG_NOTES[styleId];
+  return renderTemplate(STYLE_TAGS_PROMPT_TEMPLATE, {
+    LYRICS: lyrics,
+    STYLE_NAME: styleName,
+    STYLE_NOTE: note ? `\n${note}` : ''
+  });
 }
+
+// ============================================================================
+// NO-CLAUDE FALLBACKS - used when no Anthropic key is configured
+// ============================================================================
+
+// SunoAPI's /api/v1/lyrics prompt is capped at 200 characters, so the style
+// goes first and the article excerpt fills whatever room is left.
+const SUNO_LYRICS_PROMPT_TEMPLATE = "Style: {{STYLE_NAME}}. A song about: {{ARTICLE_EXCERPT}}";
+const SUNO_LYRICS_PROMPT_MAX_CHARS = 200;
+
+function buildSunoLyricsPrompt(articleText, songStyle) {
+  const styleName = resolveStyle(songStyle).name;
+  const room = SUNO_LYRICS_PROMPT_MAX_CHARS -
+    renderTemplate(SUNO_LYRICS_PROMPT_TEMPLATE, { STYLE_NAME: styleName, ARTICLE_EXCERPT: '' }).length;
+  return renderTemplate(SUNO_LYRICS_PROMPT_TEMPLATE, {
+    STYLE_NAME: styleName,
+    ARTICLE_EXCERPT: collapseWhitespace(articleText).slice(0, Math.max(0, room))
+  });
+}
+
+// Hand-tuned Suno style tags for the built-in styles
+const FALLBACK_STYLE_TAGS = {
+  spoken: "Spoken Word, Hip-Hop, Rhythmic Storytelling, 90 BPM, Clear Delivery",
+  musical: "Pop Musical, Upbeat, Catchy, 120 BPM, Piano, Bright Vocals",
+  meme: "Comedy Rap, Novelty Pop, Energetic, 128 BPM, Quirky Synths",
+  cute: "Indie Pop, Dreamy, Upbeat, Warm Synths, Sweet Vocals",
+  informative: "Educational Folk, Clear, 95 BPM, Acoustic Guitar, Narrative",
+  pop: "Pop, Catchy, Radio-Friendly, Mainstream, Hook-Driven"
+};
+const CUSTOM_FALLBACK_STYLE_TAGS_TEMPLATE = "{{STYLE_NAME}}, Modern, Contemporary, Expressive";
+
+function getFallbackStyleTags(songStyle) {
+  const style = typeof songStyle === 'object' ? songStyle : { id: songStyle, name: songStyle };
+  if (FALLBACK_STYLE_TAGS[style.id]) return FALLBACK_STYLE_TAGS[style.id];
+  // Custom style: its description is the best hint we have
+  if (style.description) {
+    return style.description.substring(0, 100).replace(/Style:[ \t\r\n\f\v]*/i, '');
+  }
+  return renderTemplate(CUSTOM_FALLBACK_STYLE_TAGS_TEMPLATE, { STYLE_NAME: style.name });
+}
+
+// ============================================================================
+// SONG RECIPE - everything the Android app needs, exported to JSON at build time
+// ============================================================================
+
+const SONG_RECIPE = {
+  version: 1,
+  defaultStyles: DEFAULT_STYLES,
+  defaultStyleDescription: DEFAULT_STYLE_DESCRIPTION,
+  lyricsSystemPrompt: LYRICS_SYSTEM_PROMPT,
+  lyricsPromptTemplate: LYRICS_PROMPT_TEMPLATE,
+  styleSystemPrompt: STYLE_SYSTEM_PROMPT,
+  styleTagsPromptTemplate: STYLE_TAGS_PROMPT_TEMPLATE,
+  styleTagNotes: STYLE_TAG_NOTES,
+  sunoLyricsPromptTemplate: SUNO_LYRICS_PROMPT_TEMPLATE,
+  sunoLyricsPromptMaxChars: SUNO_LYRICS_PROMPT_MAX_CHARS,
+  fallbackStyleTags: FALLBACK_STYLE_TAGS,
+  customFallbackStyleTagsTemplate: CUSTOM_FALLBACK_STYLE_TAGS_TEMPLATE
+};
 
 // ============================================================================
 // EXPORTS
 // ============================================================================
 
 if (typeof module !== 'undefined' && module.exports) {
-  module.exports = { 
-    LYRICS_SYSTEM_PROMPT, 
+  module.exports = {
+    LYRICS_SYSTEM_PROMPT,
     STYLE_SYSTEM_PROMPT,
     SYSTEM_PROMPT, // Legacy export (same as LYRICS_SYSTEM_PROMPT)
-    getLyricsPrompt, 
+    getLyricsPrompt,
     getStyleTagsPrompt,
+    buildSunoLyricsPrompt,
+    getFallbackStyleTags,
+    renderTemplate,
+    SONG_RECIPE,
     // Style management functions
     getDefaultStyles,
     loadCustomStyles,
@@ -450,4 +547,3 @@ if (typeof module !== 'undefined' && module.exports) {
     DEFAULT_STYLES
   };
 }
-

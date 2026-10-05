@@ -1,0 +1,10 @@
+.gradle/
+.kotlin/
+build/
+local.properties
+captures/
+*.iml
+.idea/
+# Release signing (created by `just keystore`) - back these up, never commit them
+keystore/
+keystore.properties

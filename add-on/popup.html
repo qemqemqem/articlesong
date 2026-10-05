@@ -1,43 +1,55 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>Article Song</title>
+  <meta charset="UTF-8">
+  <title>ArticleSong</title>
   <style>
+    :root {
+      --primary: #5a67d8;        /* white text on it: 4.8:1 */
+      --primary-hover: #4c51bf;
+      --primary-ink: #4c51bf;    /* primary-coloured text on light backgrounds */
+      --primary-soft: #ebf4ff;
+      --text: #2d3748;
+      --muted: #5a6577;          /* secondary text: 5.9:1 on white */
+      --border: #e2e8f0;
+      --danger: #c53030;
+      --danger-soft: #fff5f5;
+      --warn-ink: #9c4221;
+      --warn-soft: #fffaf0;
+      --bg: #f7fafc;
+    }
+
     * {
       margin: 0;
       padding: 0;
       box-sizing: border-box;
     }
-    
+
     body {
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
       width: 420px;
       max-height: 600px;
-      background: #f7fafc;
-      color: #2d3748;
+      background: var(--bg);
+      color: var(--text);
     }
-    
+
     .header {
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      background: linear-gradient(135deg, #5a67d8 0%, #6b46c1 100%);
       color: white;
-      padding: 16px 20px;
+      padding: 14px 16px 14px 20px;
       display: flex;
       justify-content: space-between;
       align-items: center;
     }
-    
+
     .header h1 {
       font-size: 20px;
       font-weight: 700;
+      letter-spacing: -0.01em;
     }
-    
-    .header-actions {
-      display: flex;
-      gap: 8px;
-    }
-    
+
     .icon-btn {
-      background: rgba(255, 255, 255, 0.2);
+      background: rgba(26, 32, 44, 0.28);
       border: none;
       color: white;
       padding: 6px 12px;
@@ -49,520 +61,506 @@
       transition: background 0.2s;
       display: flex;
       align-items: center;
-      justify-content: center;
+      gap: 6px;
       white-space: nowrap;
+      font-family: inherit;
     }
-    
-    .icon-btn:hover {
-      background: rgba(255, 255, 255, 0.3);
-    }
-    
+    .icon-btn svg { width: 16px; height: 16px; fill: currentColor; }
+    .icon-btn:hover { background: rgba(26, 32, 44, 0.42); }
+
     .content {
-      max-height: 520px;
+      max-height: 536px;
       overflow-y: auto;
       padding: 16px;
     }
-    
+
     .section {
-      margin-bottom: 20px;
+      margin-bottom: 18px;
     }
-    
-    #create-section {
-      background: white;
-      padding: 14px;
-      border-radius: 10px;
-      border: 2px solid #e2e8f0;
-    }
-    
-    #create-section .section-title {
-      margin-bottom: 12px;
-      display: block;
-    }
-    
-    .create-song-btn {
-      font-size: 13px;
-      padding: 10px 16px;
-    }
-    
-    .custom-style-input {
-      width: 100%;
-      padding: 10px 14px;
-      font-size: 13px;
-      border: 2px solid #cbd5e0;
-      border-radius: 6px;
-      background: white;
-      margin-bottom: 8px;
-      font-family: inherit;
-      transition: all 0.2s;
-    }
-    
-    .custom-style-input:focus {
-      outline: none;
-      border-color: #667eea;
-      box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
-    }
-    
-    .custom-style-input::placeholder {
-      color: #a0aec0;
-      font-style: italic;
-    }
-    
+
     .section-header {
       display: flex;
-      justify-content: space-between;
       align-items: center;
-      margin-bottom: 12px;
+      gap: 8px;
+      margin-bottom: 10px;
     }
-    
+    .section-header .spacer { flex: 1; }
+
     .section-title {
-      font-size: 14px;
+      font-size: 13px;
       font-weight: 700;
       color: #4a5568;
       text-transform: uppercase;
       letter-spacing: 0.5px;
     }
-    
+
     .badge {
-      background: #667eea;
+      background: var(--primary);
       color: white;
       font-size: 12px;
       font-weight: 600;
-      padding: 2px 8px;
+      padding: 1px 8px;
       border-radius: 10px;
     }
-    
-    .request-card {
-      background: white;
-      border: 2px solid #e2e8f0;
-      border-radius: 10px;
-      padding: 14px;
-      margin-bottom: 10px;
-      transition: all 0.2s;
+
+    .text-link {
+      font-size: 12px; color: var(--muted); text-decoration: none; padding: 2px 6px; border-radius: 4px;
+      background: none; border: none; cursor: pointer; font-family: inherit;
     }
-    
-    .request-card:hover {
-      border-color: #cbd5e0;
-      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
-    }
-    
-    .request-card.active {
-      border-color: #667eea;
-      background: #f0f4ff;
-    }
-    
-    .request-card.streaming {
-      border-color: #ed8936;
-      background: #fffaf0;
-    }
-    
-    .request-card.complete {
-      border-color: #48bb78;
-    }
-    
-    .request-card.failed {
-      border-color: #f56565;
-      background: #fff5f5;
-    }
-    
-    .request-card.cancelled {
-      border-color: #cbd5e0;
-      background: #f7fafc;
-      opacity: 0.8;
-    }
-    
-    .request-card.streaming {
-      border-color: #ed8936;
-      background: #fffaf0;
-    }
-    
-    .request-title {
-      font-size: 15px;
-      font-weight: 600;
-      color: #2d3748;
-      margin-bottom: 8px;
-      display: flex;
-      align-items: center;
-      gap: 8px;
-    }
-    
-    .request-status {
-      font-size: 14px;
-      color: #4a5568;
-      margin-bottom: 8px;
-      display: flex;
-      align-items: center;
-      gap: 6px;
-    }
-    
-    .status-icon {
-      font-size: 16px;
-    }
-    
-    .progress-bar {
-      height: 6px;
-      background: #e2e8f0;
-      border-radius: 3px;
-      overflow: hidden;
-      margin-bottom: 8px;
-    }
-    
-    .progress-fill {
-      height: 100%;
-      background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
-      transition: width 0.3s;
-      border-radius: 3px;
-    }
-    
-    .request-meta {
-      font-size: 12px;
-      color: #718096;
-      margin-bottom: 10px;
-    }
-    
-    .request-actions {
-      display: flex;
-      gap: 6px;
-      flex-wrap: wrap;
-    }
-    
-    .copy-section {
-      display: flex;
-      gap: 6px;
-      margin-bottom: 8px;
-    }
-    
-    .copy-section .btn {
-      font-size: 11px;
-      padding: 5px 10px;
-      opacity: 0.9;
-    }
-    
-    .copy-section .btn:hover {
-      opacity: 1;
-    }
-    
-    .now-playing {
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-      color: white;
-      padding: 12px 16px;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      border-radius: 10px;
-      margin-bottom: 16px;
-      box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
-    }
-    
-    .now-playing-info {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      flex: 1;
-      min-width: 0;
-    }
-    
-    .now-playing-icon {
-      font-size: 24px;
-      font-weight: bold;
-      opacity: 0.9;
-      animation: pulse 2s ease-in-out infinite;
-    }
-    
-    @keyframes pulse {
-      0%, 100% { opacity: 0.6; }
-      50% { opacity: 1; }
-    }
-    
-    .now-playing-text {
-      flex: 1;
-      min-width: 0;
-    }
-    
-    .now-playing-title {
-      font-size: 11px;
-      opacity: 0.8;
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
-      margin-bottom: 2px;
-    }
-    
-    .now-playing-subtitle {
-      font-size: 14px;
-      font-weight: 600;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-    }
-    
-    .media-control-btn {
-      background: rgba(255, 255, 255, 0.2);
-      border: 2px solid rgba(255, 255, 255, 0.4);
-      color: white;
-      width: 40px;
-      height: 40px;
-      border-radius: 50%;
-      cursor: pointer;
-      font-size: 16px;
-      font-weight: bold;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      transition: all 0.2s;
-      flex-shrink: 0;
-    }
-    
-    .media-control-btn:hover {
-      background: rgba(255, 255, 255, 0.3);
-      border-color: rgba(255, 255, 255, 0.6);
-      transform: scale(1.05);
-    }
-    
-    .media-control-btn:active {
-      transform: scale(0.95);
-    }
-    
+    .text-link:hover { background: #edf2f7; color: var(--danger); }
+    .text-link:focus-visible { outline: 2px solid var(--primary); outline-offset: 1px; }
+    .queue-hint { font-size: 12px; color: var(--muted); }
+
+    /* ---- Buttons ---- */
     .btn {
       padding: 6px 12px;
       font-size: 12px;
       font-weight: 600;
       border: none;
-      border-radius: 5px;
+      border-radius: 6px;
       cursor: pointer;
-      transition: all 0.2s;
+      transition: background 0.15s, color 0.15s, border-color 0.15s;
       font-family: inherit;
-    }
-    
-    .btn-primary {
-      background: #667eea;
-      color: white;
-    }
-    
-    .btn-primary:hover {
-      background: #5568d3;
-    }
-    
-    .btn-secondary {
-      background: #e2e8f0;
-      color: #4a5568;
-    }
-    
-    .btn-secondary:hover {
-      background: #cbd5e0;
-    }
-    
-    .btn-danger {
-      background: #f56565;
-      color: white;
-    }
-    
-    .btn-danger:hover {
-      background: #e53e3e;
-    }
-    
-    .btn-success {
-      background: #48bb78;
-      color: white;
-    }
-    
-    .btn-success:hover {
-      background: #38a169;
-    }
-    
-    .empty-state {
-      text-align: center;
-      padding: 40px 20px;
-      color: #718096;
-    }
-    
-    .empty-state-icon {
-      font-size: 48px;
-      margin-bottom: 12px;
-      opacity: 0.5;
-    }
-    
-    .empty-state-text {
-      font-size: 14px;
-      line-height: 1.6;
-    }
-    
-    .footer {
-      padding: 12px 16px;
-      border-top: 2px solid #e2e8f0;
-      background: white;
-      display: flex;
-      justify-content: space-between;
+      display: inline-flex;
       align-items: center;
+      gap: 5px;
+      min-height: 28px;
     }
-    
-    .footer-btn {
-      font-size: 12px;
-      color: #667eea;
-      text-decoration: none;
-      font-weight: 600;
-      padding: 6px 12px;
-      border-radius: 5px;
-      transition: background 0.2s;
+    .btn svg { width: 14px; height: 14px; fill: currentColor; flex: none; }
+    .btn-primary { background: var(--primary); color: white; }
+    .btn-primary:hover:not(:disabled) { background: var(--primary-hover); }
+    .btn-secondary { background: #e2e8f0; color: #2d3748; }
+    .btn-secondary:hover:not(:disabled) { background: #cbd5e0; }
+    .btn-danger-outline { background: white; color: var(--danger); border: 1px solid #feb2b2; }
+    .btn-danger-outline:hover:not(:disabled) { background: var(--danger-soft); border-color: var(--danger); }
+    .btn:disabled { cursor: not-allowed; opacity: 0.55; }
+    .btn:focus-visible, .icon-btn:focus-visible, .chip:focus-visible, .seg button:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+
+    /* ---- Message banner ---- */
+    #error-banner {
+      display: none; border: 2px solid #fc8181; border-radius: 8px; padding: 10px 12px; margin-bottom: 12px;
+      font-size: 13px; line-height: 1.4; word-break: break-word;
     }
-    
-    .footer-btn:hover {
-      background: #f0f4ff;
+
+    /* ---- Create card ---- */
+    #create-section {
+      background: white;
+      padding: 14px;
+      border-radius: 12px;
+      border: 1px solid var(--border);
+      box-shadow: 0 1px 3px rgba(45, 55, 72, 0.06);
     }
-    
+    #create-section .section-header { margin-bottom: 10px; }
+    .source-line { font-size: 12px; color: var(--muted); display: flex; align-items: center; gap: 6px; margin-bottom: 10px; }
+    .source-line .pill { background: #edf2f7; color: #2d3748; border-radius: 999px; padding: 2px 9px; font-weight: 600; }
+    .seg { display: inline-flex; background: #edf2f7; border-radius: 999px; padding: 2px; }
+    .seg button {
+      border: none; background: transparent; font: inherit; font-size: 12px; font-weight: 600; color: #4a5568;
+      padding: 3px 10px; border-radius: 999px; cursor: pointer;
+    }
+    .seg button[aria-checked="true"] { background: white; color: var(--primary-ink); box-shadow: 0 1px 2px rgba(0,0,0,0.12); }
+
+    .chips { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
+    .chip {
+      min-height: 34px; padding: 4px 6px; border-radius: 8px; border: 1px solid #cbd5e0; background: white;
+      font: inherit; font-size: 12.5px; font-weight: 600; color: #2d3748; cursor: pointer;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+      transition: border-color 0.12s, background 0.12s;
+    }
+    .chip:hover:not(:disabled) { border-color: var(--primary); }
+    .chip[aria-checked="true"] { background: var(--primary-soft); border-color: var(--primary); color: var(--primary-ink); box-shadow: inset 0 0 0 1px var(--primary); }
+    .chip:disabled { cursor: not-allowed; opacity: 0.55; }
+    .chip.alt { border-style: dashed; }
+    .style-blurb { font-size: 12px; color: var(--muted); margin: 8px 2px 0; min-height: 16px; }
+
+    .custom-style-input {
+      width: 100%;
+      padding: 9px 12px;
+      font-size: 13px;
+      border: 1px solid #a0aec0;
+      border-radius: 8px;
+      background: white;
+      font-family: inherit;
+      margin-top: 8px;
+    }
+    .custom-style-input:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 3px rgba(90, 103, 216, 0.2); }
+    .custom-style-input::placeholder { color: #718096; }
+
+    .create-row { display: flex; gap: 8px; margin-top: 12px; }
+    #create-btn { flex: 1; justify-content: center; font-size: 14px; min-height: 40px; border-radius: 8px; }
+    #create-btn svg { width: 16px; height: 16px; }
+    #toggle-styles-btn { display: none; min-height: 40px; border-radius: 8px; }
+    .credits-line { font-size: 12px; color: var(--muted); margin-top: 8px; line-height: 1.4; }
+    .credits-line.out { color: var(--danger); font-weight: 600; }
+    .credits-line a { color: var(--primary-ink); font-weight: 600; }
+
+    /* Busy popup: the create card shrinks to one row so progress stays in view */
+    #create-section.collapsed .style-picker { display: none; }
+    #create-section.collapsible #toggle-styles-btn { display: inline-flex; }
+    #create-section.collapsed .create-row { margin-top: 0; }
+
+    #create-section.locked > :not(.section-header):not(#setup-card) { display: none !important; }
+    body.unconfigured #empty-state { display: none !important; }
+    #create-section.busy .chip, #create-section.busy .custom-style-input, #create-section.busy #toggle-styles-btn { opacity: 0.55; }
+    #create-section.busy button, #create-section.busy input { cursor: progress; }
+    #create-section.busy #create-btn { opacity: 1; }
+    #create-btn .spinner { border-color: rgba(255,255,255,0.35); border-top-color: white; }
+
+    /* ---- Setup card ---- */
+    .setup-card {
+      background: linear-gradient(135deg, #ebf4ff 0%, #faf5ff 100%);
+      border: 1px solid #c3dafe; border-radius: 10px; padding: 14px;
+    }
+    .setup-title { font-size: 15px; font-weight: 700; color: #434190; margin-bottom: 6px; }
+    .setup-text { font-size: 12px; color: #4a5568; margin-bottom: 4px; line-height: 1.5; }
+    .setup-step { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: var(--primary-ink); margin: 12px 0 6px; }
+    .setup-paste { display: flex; gap: 8px; }
+    .setup-paste input { flex: 1; min-width: 0; margin: 0; }
+    .setup-link { display: inline-block; margin-top: 12px; font-size: 12px; color: var(--primary-ink); font-weight: 600; }
+
+    /* ---- Request cards ("In the studio") ---- */
+    .request-card {
+      background: white;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 12px 14px;
+      margin-bottom: 8px;
+    }
+    .request-card.active { border-color: #c3dafe; box-shadow: 0 1px 4px rgba(90, 103, 216, 0.12); }
+    .card-top { display: flex; align-items: flex-start; gap: 10px; }
+    .card-text { flex: 1; min-width: 0; }
+    .request-title { font-size: 14px; font-weight: 600; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .request-sub { font-size: 12px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 1px; }
+    .request-status { font-size: 12.5px; color: #4a5568; display: flex; align-items: center; gap: 6px; margin-top: 8px; flex-wrap: wrap; }
+    .js-time { color: var(--muted); font-variant-numeric: tabular-nums; margin-left: auto; }
+
+    .stepper { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; margin-top: 10px; }
+    .step-bar { height: 5px; border-radius: 3px; background: #e2e8f0; overflow: hidden; }
+    .step-fill { height: 100%; width: 0; background: linear-gradient(90deg, #5a67d8 0%, #805ad5 100%); transition: width 0.4s; }
+    .step-label { font-size: 11px; color: #718096; margin-top: 3px; font-weight: 600; }
+    .step.done .step-label, .step.current .step-label { color: #2d3748; }
+
+    .request-meta { display: flex; align-items: center; gap: 6px; margin-top: 8px; flex-wrap: wrap; }
+    .style-tag {
+      display: inline-block; background: #edf2f7; color: #2d3748; font-size: 11px; padding: 2px 8px; border-radius: 4px; font-weight: 600;
+    }
+    .request-note { font-size: 12px; color: var(--warn-ink); background: var(--warn-soft); border-left: 3px solid #ed8936; padding: 6px 8px; border-radius: 4px; margin-top: 8px; }
+    details.lyrics { margin-top: 8px; font-size: 12px; }
+    details.lyrics summary { cursor: pointer; color: var(--primary-ink); font-weight: 600; }
+    details.lyrics pre {
+      white-space: pre-wrap; font-family: inherit; font-size: 12px; line-height: 1.5; color: #2d3748;
+      max-height: 160px; overflow-y: auto; background: var(--bg); border-radius: 6px; padding: 8px; margin-top: 6px;
+    }
+
     .spinner {
-      display: inline-block;
-      width: 12px;
-      height: 12px;
-      border: 2px solid #e2e8f0;
-      border-top-color: #667eea;
-      border-radius: 50%;
+      display: inline-block; width: 12px; height: 12px; flex: none;
+      border: 2px solid #e2e8f0; border-top-color: var(--primary); border-radius: 50%;
       animation: spin 0.8s linear infinite;
     }
-    
-    .request-card.streaming .spinner {
-      border-top-color: #ed8936;
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ---- Recent songs (history rows) ---- */
+    .request-card.song-row { display: flex; gap: 10px; align-items: flex-start; padding: 10px; position: relative; }
+    .song-art {
+      width: 40px; height: 40px; flex: none; border-radius: 8px;
+      background: linear-gradient(135deg, #5a67d8 0%, #805ad5 100%) center / cover;
+      display: flex; align-items: center; justify-content: center; color: white;
     }
-    
-    @keyframes spin {
-      to { transform: rotate(360deg); }
+    .song-art svg { width: 18px; height: 18px; fill: currentColor; }
+    .song-art.has-image svg { display: none; }
+    .song-art.failed { background: var(--danger-soft); color: var(--danger); }
+    .song-art.cancelled { background: #edf2f7; color: #718096; }
+    .song-row .row-actions { display: flex; gap: 4px; flex: none; align-items: center; }
+    .song-row .row-buttons { display: flex; gap: 6px; margin-top: 8px; flex-wrap: wrap; }
+    .error-message { font-size: 12.5px; color: var(--danger); margin-top: 4px; line-height: 1.4; }
+    .warn-message { font-size: 12px; color: var(--warn-ink); margin-top: 4px; line-height: 1.4; }
+    .round-btn {
+      width: 32px; height: 32px; border-radius: 50%; border: none; cursor: pointer;
+      display: flex; align-items: center; justify-content: center; background: transparent; color: #4a5568;
     }
-    
-    .style-tag {
-      display: inline-block;
-      background: #e2e8f0;
-      color: #4a5568;
-      font-size: 11px;
-      padding: 3px 8px;
-      border-radius: 4px;
-      font-weight: 600;
+    .round-btn svg { width: 18px; height: 18px; fill: currentColor; }
+    .round-btn:hover { background: #edf2f7; color: #2d3748; }
+    .round-btn.play { background: var(--primary); color: white; }
+    .round-btn.play:hover { background: var(--primary-hover); }
+    .round-btn:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+    .menu {
+      position: absolute; right: 8px; top: 46px; z-index: 5; background: white; border: 1px solid var(--border);
+      border-radius: 8px; box-shadow: 0 8px 24px rgba(45, 55, 72, 0.18); padding: 4px; min-width: 170px;
     }
-    
-    .error-message {
-      font-size: 13px;
-      color: #c53030;
-      margin-top: 6px;
-      line-height: 1.4;
+    .menu button {
+      display: flex; width: 100%; align-items: center; gap: 8px; border: none; background: none; text-align: left;
+      font: inherit; font-size: 13px; padding: 7px 10px; border-radius: 6px; cursor: pointer; color: #2d3748;
     }
-    
+    .menu button svg { width: 15px; height: 15px; fill: currentColor; color: #4a5568; }
+    .menu button:hover, .menu button:focus-visible { background: #edf2f7; outline: none; }
+    .menu button.danger { color: var(--danger); }
+    .menu button.danger svg { color: var(--danger); }
+
+    /* ---- Music player widget ---- */
+    .player {
+      background: linear-gradient(135deg, #2d3748 0%, #1a202c 100%);
+      color: #fff;
+      border-radius: 14px;
+      padding: 14px;
+      margin-bottom: 14px;
+      box-shadow: 0 6px 18px rgba(26, 32, 44, 0.35);
+    }
+    .player-top { display: flex; align-items: center; gap: 12px; }
+    .player-art {
+      width: 56px; height: 56px; flex: none; border-radius: 10px;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) center / cover;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .player-art svg { width: 26px; height: 26px; fill: rgba(255,255,255,0.9); }
+    .player-art.has-image svg { display: none; }
+    .player-meta { flex: 1; min-width: 0; }
+    .player-kicker {
+      font-size: 10px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase;
+      color: #b794f4; display: flex; align-items: center; gap: 6px; white-space: nowrap; overflow: hidden;
+    }
+    .player-kicker.streaming { color: #f6ad55; }
+    .player-kicker .dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; animation: pulse 1.4s ease-in-out infinite; }
+    .player.paused .player-kicker .dot { animation: none; opacity: 0.4; }
+    @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
+    .player-title { font-size: 15px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .player-sub { font-size: 12px; color: #cbd5e0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .player-seek { display: flex; align-items: center; gap: 8px; margin: 12px 0 6px; font-size: 11px; color: #cbd5e0; font-variant-numeric: tabular-nums; }
+    .player-seek span { width: 34px; flex: none; }
+    .player-seek span:last-child { text-align: right; }
+    .player-seek input[type=range] {
+      --pct: 0%;
+      flex: 1; min-width: 0; height: 4px; border-radius: 2px; cursor: pointer;
+      -webkit-appearance: none; appearance: none;
+      background: linear-gradient(to right, #b794f4 var(--pct), rgba(255,255,255,0.18) var(--pct));
+    }
+    .player-seek input[type=range]:disabled { cursor: default; opacity: 0.6; }
+    .player-seek input[type=range]::-moz-range-thumb { width: 12px; height: 12px; border: none; border-radius: 50%; background: #fff; }
+    .player-seek input[type=range]::-moz-range-track { background: transparent; }
+    .player-seek input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 12px; height: 12px; border-radius: 50%; background: #fff; }
+    .player-controls { display: flex; align-items: center; justify-content: center; gap: 14px; }
+    .player-btn {
+      background: transparent; border: none; color: #fff; cursor: pointer;
+      width: 36px; height: 36px; border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      transition: background 0.15s, transform 0.1s;
+    }
+    .player-btn:hover { background: rgba(255,255,255,0.14); }
+    .player-btn:active { transform: scale(0.92); }
+    .player-btn:focus-visible, .player-seek input:focus-visible { outline: 2px solid #b794f4; outline-offset: 2px; }
+    .player-btn svg { width: 22px; height: 22px; fill: currentColor; }
+    .player-btn.primary { width: 48px; height: 48px; background: #fff; color: #2d3748; }
+    .player-btn.primary:hover { background: #e9d8fd; }
+    .player-btn.primary svg { width: 24px; height: 24px; }
+    .player-btn:disabled { opacity: 0.3; cursor: default; background: transparent; }
+    .player-btn.small { width: 32px; height: 32px; align-self: flex-start; color: #cbd5e0; }
+    .player-btn.small svg { width: 18px; height: 18px; }
+    .player-upnext { text-align: center; font-size: 11px; color: #cbd5e0; margin-top: 8px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .player-upnext:empty { display: none; }
+    .player-btn.small[aria-expanded="true"] { color: #fff; background: rgba(255,255,255,0.14); }
+    .player-lyrics {
+      white-space: pre-wrap; font-family: inherit; font-size: 12px; line-height: 1.55; color: #e2e8f0;
+      max-height: 180px; overflow-y: auto; background: rgba(0,0,0,0.25); border-radius: 8px; padding: 10px; margin-top: 8px;
+    }
+
+    /* ---- Queues ---- */
+    .queue-list { list-style: none; display: flex; flex-direction: column; gap: 6px; }
+    .queue-row {
+      position: relative; display: flex; align-items: center; gap: 8px;
+      background: #fff; border: 1px solid var(--border); border-radius: 10px; padding: 7px 8px 7px 6px;
+      transition: border-color 0.15s, box-shadow 0.15s, opacity 0.15s;
+    }
+    .queue-row:hover { border-color: #cbd5e0; box-shadow: 0 2px 8px rgba(45, 55, 72, 0.08); }
+    .queue-row.next { border-left: 4px solid var(--primary); }
+    #queue-requests .queue-row { background: transparent; border-style: dashed; border-color: #cbd5e0; }
+    #queue-requests .queue-title { color: #4a5568; }
+    .queue-row.dragging { opacity: 0.35; }
+    .queue-row.drop-before::before, .queue-row.drop-after::after {
+      content: ''; position: absolute; left: 6px; right: 6px; height: 3px; border-radius: 2px; background: var(--primary);
+    }
+    .queue-row.drop-before::before { top: -5px; }
+    .queue-row.drop-after::after { bottom: -5px; }
+    .queue-row.just-added { animation: flash-in 1.4s ease-out; }
+    @keyframes flash-in { 0% { background: #e9d8fd; box-shadow: 0 0 0 3px rgba(90,103,216,0.35); } 100% { box-shadow: none; } }
+    .queue-grip { color: #a0aec0; cursor: grab; flex: none; display: flex; padding: 2px; }
+    .queue-grip svg { width: 14px; height: 18px; fill: currentColor; }
+    .queue-row:hover .queue-grip { color: #718096; }
+    .queue-row.dragging .queue-grip { cursor: grabbing; }
+    .queue-num {
+      flex: none; width: 24px; height: 24px; border-radius: 50%; font-size: 12px; font-weight: 700;
+      display: flex; align-items: center; justify-content: center;
+      background: #edf2f7; color: #4a5568;
+    }
+    #play-queue-requests .queue-row.next .queue-num { background: var(--primary); color: #fff; }
+    .queue-text { flex: 1; min-width: 0; }
+    .queue-title { font-size: 13px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .queue-sub { font-size: 11.5px; color: var(--muted); display: flex; align-items: center; gap: 6px; margin-top: 2px; }
+    .queue-sub .next-pill { background: var(--primary-soft); color: var(--primary-ink); font-weight: 700; border-radius: 999px; padding: 1px 7px; }
+    #queue-requests .queue-sub .next-pill { background: #edf2f7; color: #4a5568; }
+    .queue-actions { display: flex; flex: none; }
+    .queue-btn {
+      width: 28px; height: 28px; border: none; background: transparent; border-radius: 6px; cursor: pointer;
+      color: #4a5568; display: flex; align-items: center; justify-content: center;
+    }
+    .queue-btn:hover:not(:disabled) { background: #edf2f7; color: #2d3748; }
+    .queue-btn.play-now { color: var(--primary-ink); }
+    .queue-btn.play-now:hover:not(:disabled) { background: var(--primary-soft); color: var(--primary-hover); }
+    .queue-btn.remove:hover:not(:disabled) { background: var(--danger-soft); color: var(--danger); }
+    .queue-btn:disabled { opacity: 0.3; cursor: default; }
+    .queue-btn:focus-visible { outline: 2px solid var(--primary); outline-offset: 1px; }
+    .queue-btn svg { width: 18px; height: 18px; fill: currentColor; }
+
+    .empty-state {
+      text-align: center;
+      padding: 28px 20px 12px;
+      color: var(--muted);
+    }
+    .empty-state svg { width: 40px; height: 40px; fill: #cbd5e0; margin-bottom: 8px; }
+    .empty-state-text { font-size: 13px; line-height: 1.6; }
+
     /* Scrollbar styling */
-    .content::-webkit-scrollbar {
-      width: 8px;
-    }
-    
-    .content::-webkit-scrollbar-track {
-      background: #f7fafc;
-    }
-    
-    .content::-webkit-scrollbar-thumb {
-      background: #cbd5e0;
-      border-radius: 4px;
-    }
-    
-    .content::-webkit-scrollbar-thumb:hover {
-      background: #a0aec0;
-    }
+    .content::-webkit-scrollbar { width: 8px; }
+    .content::-webkit-scrollbar-track { background: var(--bg); }
+    .content::-webkit-scrollbar-thumb { background: #cbd5e0; border-radius: 4px; }
+    .content::-webkit-scrollbar-thumb:hover { background: #a0aec0; }
   </style>
 </head>
 <body>
   <div class="header">
-    <h1>Article Song</h1>
-    <div class="header-actions">
-      <button class="icon-btn" id="settings-btn" title="Settings">Settings</button>
-    </div>
+    <h1>ArticleSong</h1>
+    <button class="icon-btn" id="settings-btn" title="Settings" aria-label="Settings">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19.4 13a7.6 7.6 0 0 0 0-2l2.1-1.6-2-3.5-2.5 1a7.4 7.4 0 0 0-1.7-1L14.9 3h-4l-.4 2.9a7.4 7.4 0 0 0-1.7 1l-2.5-1-2 3.5L6.4 11a7.6 7.6 0 0 0 0 2l-2.1 1.6 2 3.5 2.5-1a7.4 7.4 0 0 0 1.7 1l.4 2.9h4l.4-2.9a7.4 7.4 0 0 0 1.7-1l2.5 1 2-3.5zM12.9 15.5a3.5 3.5 0 1 1 0-7 3.5 3.5 0 0 1 0 7z"/></svg>
+      Settings
+    </button>
   </div>
-  
+
   <div class="content">
-    <!-- Now Playing Controls (hidden by default) -->
-    <div class="now-playing" id="now-playing" style="display: none;">
-      <div class="now-playing-info">
-        <div class="now-playing-icon">~</div>
-        <div class="now-playing-text">
-          <div class="now-playing-title" id="now-playing-title">Now Playing</div>
-          <div class="now-playing-subtitle" id="now-playing-subtitle">Song title</div>
+    <div id="error-banner" role="alert"></div>
+
+    <!-- Music player widget (hidden until a song plays) -->
+    <div class="player" id="now-playing" style="display: none;">
+      <div class="player-top">
+        <div class="player-art" id="player-art"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v10.55A4 4 0 1 0 14 17V7h4V3h-6z"/></svg></div>
+        <div class="player-meta">
+          <div class="player-kicker" id="now-playing-title"><span class="dot"></span><span id="player-kicker-text">Now playing</span></div>
+          <div class="player-title" id="player-song-title">Song</div>
+          <div class="player-sub" id="now-playing-subtitle">Article</div>
         </div>
+        <button class="player-btn small" id="player-lyrics-btn" title="Show lyrics" aria-label="Show lyrics" aria-expanded="false"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 5h14v2H3zm0 4h14v2H3zm0 4h9v2H3zm16-8h2v9.5a2.5 2.5 0 1 1-2-2.45z"/></svg></button>
+        <button class="player-btn small" id="player-download-btn" title="Download" aria-label="Download"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M11 4h2v8.2l3.1-3.1 1.4 1.4L12 16l-5.5-5.5 1.4-1.4 3.1 3.1zM5 18h14v2H5z"/></svg></button>
+        <button class="player-btn small" id="stop-btn" title="Stop and close the player" aria-label="Stop and close the player"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6.4 5 5 6.4 10.6 12 5 17.6 6.4 19l5.6-5.6 5.6 5.6 1.4-1.4-5.6-5.6L19 6.4 17.6 5 12 10.6z"/></svg></button>
       </div>
-      <button class="media-control-btn" id="play-pause-btn">
-        <span id="play-pause-icon">||</span>
-      </button>
+      <div class="player-seek">
+        <span id="player-current">0:00</span>
+        <input type="range" id="player-seek" min="0" max="1000" value="0" aria-label="Seek" disabled>
+        <span id="player-duration">--:--</span>
+      </div>
+      <div class="player-controls">
+        <button class="player-btn" id="back-btn" title="Back 10 seconds" aria-label="Back 10 seconds"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4V1L7 5.5 12 10V6.5a6.5 6.5 0 1 1-6.5 6.5H3a9 9 0 1 0 9-9z"/><text x="12.5" y="16.3" font-size="7" font-weight="700" text-anchor="middle" font-family="sans-serif">10</text></svg></button>
+        <button class="player-btn primary" id="play-pause-btn" title="Pause" aria-label="Pause"><span id="play-pause-icon"></span></button>
+        <button class="player-btn" id="fwd-btn" title="Forward 10 seconds" aria-label="Forward 10 seconds"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4V1l5 4.5L12 10V6.5a6.5 6.5 0 1 0 6.5 6.5H21a9 9 0 1 1-9-9z"/><text x="11.5" y="16.3" font-size="7" font-weight="700" text-anchor="middle" font-family="sans-serif">10</text></svg></button>
+        <button class="player-btn" id="next-btn" title="Next song" aria-label="Next song" disabled><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 18l8.5-6L6 6v12zM16 6v12h2V6h-2z"/></svg></button>
+      </div>
+      <div class="player-upnext" id="player-upnext"></div>
+      <pre class="player-lyrics" id="player-lyrics" style="display: none;"></pre>
     </div>
-    
+
     <!-- Create New Song Section -->
     <div class="section" id="create-section">
       <div class="section-header">
-        <span class="section-title">Create Song from Current Page</span>
+        <span class="section-title">New song from this page</span>
       </div>
-      
-      <!-- Selection Info (shown when text is highlighted) -->
-      <div id="selection-info" style="display: none; background: #fffaf0; border: 2px solid #ed8936; border-radius: 8px; padding: 10px; margin-bottom: 12px;">
-        <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px;">
-          <div style="flex: 1;">
-            <div style="font-size: 13px; font-weight: 600; color: #c05621; margin-bottom: 4px;">
-              <span id="selection-word-count">0</span> words highlighted
-            </div>
-            <label style="display: flex; align-items: center; gap: 6px; font-size: 12px; color: #744210; cursor: pointer;">
-              <input type="checkbox" id="use-selection-checkbox" checked style="width: 16px; height: 16px; cursor: pointer;">
-              <span>Use highlighted text instead of full page</span>
-            </label>
-          </div>
+
+      <!-- Shown until a SunoAPI key is saved -->
+      <div class="setup-card" id="setup-card" style="display: none;">
+        <div class="setup-title">Connect SunoAPI to start making songs</div>
+        <div class="setup-text">SunoAPI makes the music. It's a paid service: each song uses credits from your SunoAPI account. Create an account, copy your API key and paste it here.</div>
+        <div class="setup-step">1. Get your key</div>
+        <button class="btn btn-primary" id="get-suno-key" style="width: 100%; justify-content: center;">Open the SunoAPI key page &#8599;</button>
+        <div class="setup-step">2. Paste it</div>
+        <div class="setup-paste">
+          <input type="password" id="suno-key-input" class="custom-style-input" placeholder="Paste your SunoAPI key" autocomplete="off" aria-label="SunoAPI key">
+          <button class="btn btn-primary" id="save-suno-key">Save</button>
         </div>
+        <a href="#" class="setup-link" id="get-claude-key">Optional: add an Anthropic (Claude) key for sharper lyrics &#8599;</a>
       </div>
-      
-      <div id="style-buttons" style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
-        <!-- Style buttons will be dynamically generated by popup.js -->
+
+      <div class="source-line" id="source-line"></div>
+
+      <div class="style-picker">
+        <div class="chips" id="style-buttons" role="radiogroup" aria-label="Song style">
+          <!-- Style chips are generated by popup.js -->
+        </div>
+        <input type="text" id="custom-style-input" class="custom-style-input" style="display: none;"
+               placeholder="Describe the style, e.g. sea shanty with a female choir" aria-label="Custom style">
+        <div class="style-blurb" id="style-blurb"></div>
       </div>
-      <div style="display: grid; grid-template-columns: 1fr; gap: 8px; margin-top: 8px;">
-        <button class="btn btn-secondary create-song-btn" data-style="straight" style="grid-column: 1 / -1;">Use Page Text as Lyrics</button>
+
+      <div class="create-row">
+        <button class="btn btn-primary" id="create-btn"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v10.55A4 4 0 1 0 14 17V7h4V3h-6z"/></svg><span id="create-label">Create song</span></button>
+        <button class="btn btn-secondary" id="toggle-styles-btn" aria-expanded="false">Change style</button>
       </div>
-      
-      <div style="margin-top: 12px; padding-top: 12px; border-top: 2px solid #e2e8f0;">
-        <input 
-          type="text" 
-          id="custom-style-input" 
-          placeholder="style guidance" 
-          class="custom-style-input"
-        >
-        <button class="btn btn-primary" id="custom-style-btn" style="width: 100%; font-size: 13px; padding: 10px 16px;">Create with Custom Style</button>
-      </div>
+      <div class="credits-line" id="credits-line">Takes about 3 minutes and uses SunoAPI credits.</div>
     </div>
-    
-    <!-- Active Requests Section -->
+
+    <!-- Play queue: finished songs waiting for the current song to end -->
+    <div class="section" id="play-queue-section" style="display: none;">
+      <div class="section-header">
+        <span class="section-title">Up next to play</span>
+        <span class="badge" id="play-queue-count">0</span>
+        <span class="spacer"></span>
+        <span class="queue-hint">plays automatically</span>
+        <button class="text-link" id="clear-play-queue-btn">Clear</button>
+      </div>
+      <ol class="queue-list" id="play-queue-requests"></ol>
+    </div>
+
+    <!-- Songs being made right now -->
     <div class="section" id="active-section">
       <div class="section-header">
-        <span class="section-title">Active</span>
+        <span class="section-title">In the studio</span>
         <span class="badge" id="active-count">0</span>
       </div>
       <div id="active-requests">
         <!-- Active request cards will be injected here -->
       </div>
     </div>
-    
+
+    <!-- Queue Section: songs waiting for a free generation slot -->
+    <div class="section" id="queue-section" style="display: none;">
+      <div class="section-header">
+        <span class="section-title">Waiting to generate</span>
+        <span class="badge" id="queue-count">0</span>
+        <span class="spacer"></span>
+        <span class="queue-hint">drag to reorder</span>
+        <button class="text-link" id="clear-queue-btn" title="Cancel every song waiting to generate">Cancel all</button>
+      </div>
+      <ol class="queue-list" id="queue-requests"></ol>
+    </div>
+
     <!-- History Section -->
     <div class="section" id="history-section">
       <div class="section-header">
-        <span class="section-title">Recent History</span>
+        <span class="section-title">Recent songs</span>
         <span class="badge" id="history-count">0</span>
+        <span class="spacer"></span>
+        <button class="text-link" id="clear-history-btn">Clear history</button>
       </div>
       <div id="history-requests">
-        <!-- History request cards will be injected here -->
+        <!-- History rows will be injected here -->
       </div>
     </div>
-    
+
     <!-- Empty State -->
     <div class="empty-state" id="empty-state">
-      <div class="empty-state-icon">~</div>
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v10.55A4 4 0 1 0 14 17V7h4V3h-6z"/></svg>
       <div class="empty-state-text">
-        No songs yet!<br>
-        Right-click the extension icon and choose a song style to get started.
+        Your songs will show up here.<br>
+        Pick a style above and press Create.
       </div>
     </div>
   </div>
-  
-  <div class="footer">
-    <a href="#" class="footer-btn" id="clear-history-btn">Clear History</a>
-    <span id="footer-status" style="font-size: 11px; color: #718096;"></span>
-  </div>
-  
+
   <script src="prompts.js"></script>
   <script src="popup.js"></script>
 </body>
 </html>
-

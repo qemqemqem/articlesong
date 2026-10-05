@@ -157,6 +157,10 @@ const Logger = {
     this._addLog('warning', message, data);
   },
   
+  warn(message, data) {
+    this.warning(message, data);
+  },
+  
   error(message, data) {
     this._addLog('error', message, data);
   },

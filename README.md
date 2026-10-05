@@ -10,6 +10,14 @@ A browser extension that converts articles into songs using AI!
 4. Suno AI creates a song from those lyrics
 5. Audio plays directly in your browser!
 
+## 📱 Android app
+
+`android/` is a companion Android app: share an article (or highlighted text) to
+ArticleSong, and it composes the song in the background, auto-plays it, and keeps the MP3 in
+a music library. It uses this add-on's prompts (`add-on/prompts.js`) and article extraction
+(`add-on/article_extract.js`) directly, so both stay in sync. See [android/README.md](android/README.md),
+and run `just` for build, test and install commands.
+
 ## 🏗️ Architecture (v2.0 - Browser-Only)
 
 **No Python backend needed!** Everything runs in the browser extension:
@@ -57,23 +65,30 @@ Article Text → Lyrics AI (Claude or SunoAPI) → SunoAPI.org (music) → Audio
 
 ### 3. Configure API Keys
 
-1. Click the extension options (right-click extension icon → Options)
-2. Paste your SunoAPI key (required)
-3. Optionally paste your Anthropic API key (for better lyrics quality)
-4. Click "Save Settings"
+The popup walks you through it on first use: open the SunoAPI key page, paste the key, Save. Or use the settings page:
+
+1. Click the extension options (right-click extension icon → Options), or **Settings** in the popup
+2. Paste your SunoAPI key (required) and press **Test**: it shows your remaining credits
+3. Optionally paste your Anthropic API key (for better lyrics quality) and press **Test**
+
+Settings save automatically.
 
 **Note:** If you don't set the Anthropic key, the extension will use SunoAPI's lyrics generation endpoint instead. This works well but Claude tends to produce more refined, article-specific lyrics.
 
 ## 🎤 Song Styles
 
-Choose from the context menu (right-click extension button):
+In the popup, pick a style and press **Create** (picking a style never spends credits by itself; the popup shows your SunoAPI balance under the button). The context menu (right-click the extension button) has one-click shortcuts for most of them.
 
-- **Musical Song** (default) - Traditional song structure with verses and chorus
-- **Spoken Word** - Rhythmic spoken-word style
-- **Meme Song** - Humorous and viral-worthy
-- **Cute Song** - Light-hearted and positive
-- **Informative Song** - Educational, fact-focused
-- **Use Page Text as Lyrics** - Uses article text directly (no AI rewriting)
+- **Musical** (default) - Traditional song structure with verses and chorus
+- **Spoken** - Rhythmic spoken-word style
+- **Meme** - Humorous and viral-worthy
+- **Cute** - Light-hearted and positive
+- **Informative** - Educational, fact-focused
+- **Pop** - Hook-driven, radio-friendly
+- **As written** - Sings the article text exactly as written (no AI rewriting)
+- **Custom…** - Describe any style yourself
+
+Rename the six presets or edit their lyricist instructions from Settings → **Edit song styles**.
 
 ## 📁 Project Structure
 

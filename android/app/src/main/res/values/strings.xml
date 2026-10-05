@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">ArticleSong</string>
+    <string name="share_label">Make a song</string>
+    <string name="process_text_label">Sing it</string>
+</resources>

@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Beamed eighth notes with an RGB-split "glitch", after the add-on's glitch_note icon. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp" android:height="108dp"
+    android:viewportWidth="108" android:viewportHeight="108">
+    <group android:translateX="-2.4" android:translateY="0.9">
+        <path android:fillColor="#FFFF3DB4" android:fillAlpha="0.9" android:pathData="M30.66,74.37A9,6.5 -22 1,1 47.34,67.63A9,6.5 -22 1,1 30.66,74.37Z M58.66,68.37A9,6.5 -22 1,1 75.34,61.63A9,6.5 -22 1,1 58.66,68.37Z M43.7,69L43.7,35L75.3,29L75.3,63L71.7,63L71.7,37.68L47.3,42.32L47.3,69Z" />
+    </group>
+    <group android:translateX="2.4" android:translateY="-0.9">
+        <path android:fillColor="#FF3DE7FF" android:fillAlpha="0.9" android:pathData="M30.66,74.37A9,6.5 -22 1,1 47.34,67.63A9,6.5 -22 1,1 30.66,74.37Z M58.66,68.37A9,6.5 -22 1,1 75.34,61.63A9,6.5 -22 1,1 58.66,68.37Z M43.7,69L43.7,35L75.3,29L75.3,63L71.7,63L71.7,37.68L47.3,42.32L47.3,69Z" />
+    </group>
+    <path android:fillColor="#FFFFFFFF" android:pathData="M30.66,74.37A9,6.5 -22 1,1 47.34,67.63A9,6.5 -22 1,1 30.66,74.37Z M58.66,68.37A9,6.5 -22 1,1 75.34,61.63A9,6.5 -22 1,1 58.66,68.37Z M43.7,69L43.7,35L75.3,29L75.3,63L71.7,63L71.7,37.68L47.3,42.32L47.3,69Z" />
+    <!-- a displaced slice -->
+    <path android:fillColor="#FFFFFFFF" android:pathData="M48.3,50.5h9v1.6h-9z" />
+    <path android:fillColor="#FF3DE7FF" android:pathData="M60,55.4h7v1.1h-7z" />
+</vector>

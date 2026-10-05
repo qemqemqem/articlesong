@@ -1,376 +1,244 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>Article Song - Settings</title>
+  <meta charset="UTF-8">
+  <title>ArticleSong settings</title>
   <style>
+    :root {
+      --primary: #5a67d8;
+      --primary-hover: #4c51bf;
+      --primary-ink: #4c51bf;
+      --text: #2d3748;
+      --muted: #5a6577;
+      --border: #e2e8f0;
+      --danger: #c53030;
+      --ok: #276749;
+    }
+
     * {
       margin: 0;
       padding: 0;
       box-sizing: border-box;
     }
-    
+
     body {
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      background: linear-gradient(135deg, #5a67d8 0%, #6b46c1 100%);
       min-height: 100vh;
       padding: 40px 20px;
       display: flex;
       justify-content: center;
-      align-items: center;
+      align-items: flex-start;
+      color: var(--text);
     }
-    
+
     .container {
       background: white;
       border-radius: 16px;
       box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
-      max-width: 600px;
+      max-width: 640px;
       width: 100%;
-      padding: 40px;
+      padding: 36px 40px 28px;
     }
-    
-    .header {
-      text-align: center;
-      margin-bottom: 40px;
-    }
-    
-    .header h1 {
-      color: #2d3748;
-      font-size: 32px;
-      margin-bottom: 8px;
-      font-weight: 700;
-    }
-    
-    .header p {
-      color: #718096;
-      font-size: 16px;
-      line-height: 1.5;
-    }
-    
-    .api-section {
-      margin-bottom: 32px;
-      padding: 24px;
+
+    .header { margin-bottom: 28px; }
+    .header h1 { font-size: 28px; font-weight: 700; margin-bottom: 6px; }
+    .header p { color: var(--muted); font-size: 15px; line-height: 1.5; }
+
+    .card {
+      margin-bottom: 20px;
+      padding: 20px 22px;
       background: #f7fafc;
       border-radius: 12px;
-      border: 2px solid #e2e8f0;
-      transition: border-color 0.2s;
+      border: 1px solid var(--border);
     }
-    
-    .api-section:focus-within {
-      border-color: #667eea;
-    }
-    
-    .api-section h2 {
-      color: #2d3748;
-      font-size: 20px;
-      margin-bottom: 12px;
-      font-weight: 600;
-    }
-    
-    
-    .api-section p {
-      color: #4a5568;
-      font-size: 14px;
-      margin-bottom: 8px;
-      line-height: 1.5;
-    }
-    
-    .api-section a {
-      color: #667eea;
-      text-decoration: none;
-      font-weight: 500;
-      transition: color 0.2s;
-    }
-    
-    .api-section a:hover {
-      color: #764ba2;
-      text-decoration: underline;
-    }
-    
-    .input-wrapper {
-      position: relative;
-      margin-top: 16px;
-    }
-    
+    .card h2 { font-size: 17px; font-weight: 700; margin-bottom: 6px; display: flex; align-items: center; gap: 8px; }
+    .tag { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; padding: 2px 8px; border-radius: 999px; }
+    .tag.required { background: #ebf4ff; color: var(--primary-ink); }
+    .tag.optional { background: #edf2f7; color: #4a5568; }
+    .card p { color: #4a5568; font-size: 14px; line-height: 1.5; }
+    .links { margin-top: 8px; font-size: 13px; display: flex; gap: 16px; flex-wrap: wrap; }
+    a { color: var(--primary-ink); font-weight: 600; text-decoration: none; }
+    a:hover { text-decoration: underline; }
+
+    .key-row { display: flex; gap: 8px; margin-top: 14px; }
+    .input-wrapper { position: relative; flex: 1; min-width: 0; }
     .input-wrapper input {
       width: 100%;
-      padding: 12px 48px 12px 16px;
-      font-size: 15px;
-      border: 2px solid #cbd5e0;
+      padding: 11px 70px 11px 14px;
+      font-size: 14px;
+      border: 1px solid #a0aec0;
       border-radius: 8px;
       font-family: 'Monaco', 'Courier New', monospace;
-      transition: all 0.2s;
       background: white;
     }
-    
-    .input-wrapper input:focus {
-      outline: none;
-      border-color: #667eea;
-      box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
-    }
-    
-    .input-wrapper input.filled {
-      border-color: #48bb78;
-    }
-    
+    input:focus, select:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 3px rgba(90, 103, 216, 0.2); }
     .toggle-password {
-      position: absolute;
-      right: 12px;
-      top: 50%;
-      transform: translateY(-50%);
-      background: #e2e8f0;
-      border: none;
-      cursor: pointer;
-      padding: 6px 12px;
-      font-size: 12px;
-      color: #4a5568;
-      transition: all 0.2s;
-      line-height: 1;
-      border-radius: 4px;
-      font-weight: 600;
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
+      position: absolute; right: 8px; top: 50%; transform: translateY(-50%);
+      background: #edf2f7; border: none; cursor: pointer; padding: 5px 9px; font-size: 12px; color: #2d3748;
+      border-radius: 4px; font-weight: 600; font-family: inherit;
     }
-    
-    .toggle-password:hover {
-      background: #cbd5e0;
-      color: #2d3748;
+    .toggle-password:hover { background: #e2e8f0; }
+
+    .btn {
+      padding: 10px 16px; font-size: 14px; font-weight: 600; border: none; border-radius: 8px; cursor: pointer;
+      font-family: inherit; white-space: nowrap;
     }
-    
-    .button-group {
-      display: flex;
-      gap: 12px;
-      margin-top: 32px;
+    .btn-primary { background: var(--primary); color: white; }
+    .btn-primary:hover:not(:disabled) { background: var(--primary-hover); }
+    .btn-secondary { background: white; color: #2d3748; border: 1px solid #a0aec0; }
+    .btn-secondary:hover:not(:disabled) { background: #edf2f7; }
+    .btn:disabled { opacity: 0.6; cursor: progress; }
+    .btn:focus-visible, .toggle-password:focus-visible, summary:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+
+    .check-result { font-size: 13px; margin-top: 8px; min-height: 18px; line-height: 1.4; word-break: break-word; }
+    .check-result.ok { color: var(--ok); font-weight: 600; }
+    .check-result.error { color: var(--danger); }
+    .check-result.pending { color: var(--muted); }
+    .validation-message { font-size: 13px; margin-top: 6px; color: var(--danger); display: none; }
+    .validation-message.show { display: block; }
+
+    .field { margin-top: 14px; }
+    .field label.title { display: block; font-weight: 600; margin-bottom: 6px; font-size: 14px; }
+    .field input[type=text], .field select {
+      width: 100%; padding: 10px 12px; font-size: 14px; border: 1px solid #a0aec0; border-radius: 8px; background: white; font-family: inherit;
     }
-    
-    button {
-      flex: 1;
-      padding: 14px 24px;
-      font-size: 16px;
-      font-weight: 600;
-      border: none;
-      border-radius: 8px;
-      cursor: pointer;
-      transition: all 0.2s;
-      font-family: inherit;
+    .hint { font-size: 13px; color: var(--muted); margin-top: 6px; line-height: 1.45; }
+    .check { display: flex; align-items: center; gap: 10px; cursor: pointer; font-size: 15px; font-weight: 500; }
+    .check input { width: 18px; height: 18px; cursor: pointer; }
+    .check.sub { margin: 10px 0 0 28px; font-size: 14px; }
+    .check.disabled { opacity: 0.5; cursor: not-allowed; }
+    .hint.sub { margin-left: 56px; }
+
+    details.card summary { cursor: pointer; font-size: 17px; font-weight: 700; list-style: none; display: flex; align-items: center; gap: 8px; }
+    details.card summary::-webkit-details-marker { display: none; }
+    details.card summary::before { content: '▸'; color: var(--muted); transition: transform 0.15s; }
+    details.card[open] summary::before { transform: rotate(90deg); }
+    details.card summary .summary-hint { font-size: 13px; font-weight: 400; color: var(--muted); }
+
+    .saved-toast {
+      position: fixed; bottom: 20px; left: 50%; transform: translate(-50%, 20px);
+      background: #2d3748; color: white; padding: 10px 18px; border-radius: 999px; font-size: 14px; font-weight: 600;
+      opacity: 0; transition: opacity 0.2s, transform 0.2s; pointer-events: none;
     }
-    
-    #save {
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-      color: white;
-      box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
-    }
-    
-    #save:hover:not(:disabled) {
-      transform: translateY(-2px);
-      box-shadow: 0 6px 16px rgba(102, 126, 234, 0.5);
-    }
-    
-    #save:active:not(:disabled) {
-      transform: translateY(0);
-    }
-    
-    #save:disabled {
-      opacity: 0.6;
-      cursor: not-allowed;
-    }
-    
-    .status {
-      margin-top: 20px;
-      padding: 16px;
-      border-radius: 8px;
-      font-size: 15px;
-      font-weight: 500;
-      text-align: center;
-      opacity: 0;
-      transform: translateY(-10px);
-      transition: all 0.3s;
-    }
-    
-    .status.show {
-      opacity: 1;
-      transform: translateY(0);
-    }
-    
-    .status.success {
-      background: #c6f6d5;
-      color: #22543d;
-      border: 2px solid #48bb78;
-    }
-    
-    .status.error {
-      background: #fed7d7;
-      color: #742a2a;
-      border: 2px solid #f56565;
-    }
-    
-    .footer {
-      margin-top: 32px;
-      padding-top: 24px;
-      border-top: 2px solid #e2e8f0;
-      text-align: center;
-      color: #718096;
-      font-size: 13px;
-    }
-    
-    .validation-message {
-      font-size: 13px;
-      margin-top: 8px;
-      color: #e53e3e;
-      opacity: 0;
-      transition: opacity 0.2s;
-    }
-    
-    .validation-message.show {
-      opacity: 1;
-    }
-    
+    .saved-toast.show { opacity: 1; transform: translate(-50%, 0); }
+    .saved-toast.error { background: var(--danger); }
+
     .error-alert {
-      background: #fed7d7;
-      border: 2px solid #f56565;
-      border-radius: 12px;
-      padding: 16px;
-      margin-bottom: 24px;
-      animation: slideIn 0.3s ease-out;
+      background: #fff5f5; border: 1px solid #fc8181; border-radius: 12px; padding: 14px 16px; margin-bottom: 20px;
     }
-    
-    .error-alert-content strong {
-      display: block;
-      color: #742a2a;
-      font-size: 16px;
-      margin-bottom: 6px;
-    }
-    
-    .error-alert-content p {
-      color: #742a2a;
-      font-size: 14px;
-      line-height: 1.5;
-      margin: 0;
-    }
-    
-    @keyframes slideIn {
-      from {
-        opacity: 0;
-        transform: translateY(-10px);
-      }
-      to {
-        opacity: 1;
-        transform: translateY(0);
-      }
-    }
+    .error-alert strong { display: block; color: #742a2a; font-size: 15px; margin-bottom: 4px; }
+    .error-alert p { color: #742a2a; font-size: 14px; line-height: 1.5; margin: 0; }
   </style>
 </head>
 <body>
   <div class="container">
     <div class="header">
-      <h1>Article Song</h1>
-      <p>Configure your API keys to transform articles into songs</p>
+      <h1>ArticleSong settings</h1>
+      <p>Changes save automatically.</p>
     </div>
-    
+
     <!-- Error Alert (hidden by default) -->
-    <div id="error-alert" class="error-alert" style="display: none;">
-      <div class="error-alert-content">
-        <strong id="error-title"></strong>
-        <p id="error-message"></p>
-      </div>
+    <div id="error-alert" class="error-alert" role="alert" style="display: none;">
+      <strong id="error-title"></strong>
+      <p id="error-message"></p>
     </div>
-    
-    <div class="api-section">
-      <h2>SunoAPI Key (https://sunoapi.org)</h2>
-      <p>Used for generating music from lyrics.</p>
-      <p><a href="https://sunoapi.org/pricing" target="_blank">Get your key from sunoapi.org</a></p>
-      <div class="input-wrapper">
-        <input type="password" id="suno_api_key" placeholder="Your SunoAPI key" autocomplete="off">
-        <button type="button" class="toggle-password" data-target="suno_api_key">show</button>
+
+    <section class="card">
+      <h2>SunoAPI key <span class="tag required">Required</span></h2>
+      <p>SunoAPI makes the music. Each song uses credits from your SunoAPI account.</p>
+      <div class="key-row">
+        <div class="input-wrapper">
+          <input type="password" id="suno_api_key" placeholder="Your SunoAPI key" autocomplete="off" aria-label="SunoAPI key">
+          <button type="button" class="toggle-password" data-target="suno_api_key">Show</button>
+        </div>
+        <button type="button" class="btn btn-secondary" id="test-suno">Test</button>
       </div>
       <div class="validation-message" id="suno-validation"></div>
-    </div>
-    
-    <div class="api-section">
-      <h2>Anthropic API Key <span style="color: #718096; font-size: 14px; font-weight: 400;">(Optional)</span></h2>
-      <p>Used for generating song lyrics with Claude AI. If not set, SunoAPI will generate lyrics.</p>
-      <p><a href="https://console.anthropic.com/" target="_blank">Get your key from console.anthropic.com</a></p>
-      <div class="input-wrapper">
-        <input type="password" id="anthropic_api_key" placeholder="sk-ant-... (leave empty to use SunoAPI lyrics)" autocomplete="off">
-        <button type="button" class="toggle-password" data-target="anthropic_api_key">show</button>
+      <div class="check-result" id="suno-result" aria-live="polite"></div>
+      <div class="links">
+        <a href="https://sunoapi.org/api-key" target="_blank">Get a key &#8599;</a>
+        <a href="https://sunoapi.org/pricing" target="_blank">Add credits &#8599;</a>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>Anthropic key <span class="tag optional">Optional</span></h2>
+      <p>Lets Claude write sharper, article-specific lyrics. Without it, SunoAPI writes the lyrics.</p>
+      <div class="key-row">
+        <div class="input-wrapper">
+          <input type="password" id="anthropic_api_key" placeholder="sk-ant-..." autocomplete="off" aria-label="Anthropic API key">
+          <button type="button" class="toggle-password" data-target="anthropic_api_key">Show</button>
+        </div>
+        <button type="button" class="btn btn-secondary" id="test-anthropic">Test</button>
       </div>
       <div class="validation-message" id="anthropic-validation"></div>
-    </div>
-    
-    <div class="api-section">
-      <h2>Download Settings</h2>
-      <p>Configure automatic downloads for generated songs.</p>
-      
-      <div style="margin-top: 16px;">
-        <label style="display: flex; align-items: center; gap: 10px; cursor: pointer;">
-          <input type="checkbox" id="auto_download" style="width: 20px; height: 20px; cursor: pointer;">
-          <span style="font-size: 15px; font-weight: 500; color: #2d3748;">Automatically download songs when complete</span>
-        </label>
+      <div class="check-result" id="anthropic-result" aria-live="polite"></div>
+      <div class="links">
+        <a href="https://console.anthropic.com/settings/keys" target="_blank">Get a key &#8599;</a>
       </div>
-      
-      <div style="margin-top: 12px; margin-left: 30px;">
-        <label style="display: flex; align-items: center; gap: 10px; cursor: pointer;" id="download-only-label">
-          <input type="checkbox" id="download_only" style="width: 20px; height: 20px; cursor: pointer;" disabled>
-          <span style="font-size: 14px; font-weight: 500; color: #4a5568;">Only download, don't play</span>
+    </section>
+
+    <section class="card">
+      <h2>Playback and downloads</h2>
+      <div class="field">
+        <label class="check">
+          <input type="checkbox" id="auto_download">
+          <span>Download each song when it's ready</span>
         </label>
-        <div style="font-size: 12px; color: #718096; margin-top: 6px; margin-left: 30px;">
-          When enabled, songs will be downloaded but not played in the page
-        </div>
+        <label class="check sub" id="download-only-label">
+          <input type="checkbox" id="download_only" disabled>
+          <span>Only download, don't play</span>
+        </label>
+        <div class="hint sub">Songs are saved to your Downloads folder without playing.</div>
       </div>
-      
-      <div style="margin-top: 16px;">
-        <label for="download_directory" style="display: block; font-weight: 500; margin-bottom: 8px; font-size: 14px; color: #4a5568;">
-          Download folder name (optional)
-        </label>
-        <input type="text" id="download_directory" placeholder="ArticleSongs" 
-               style="width: 100%; padding: 10px 14px; font-size: 14px; border: 2px solid #cbd5e0; border-radius: 6px; background: white;">
-        <div style="font-size: 12px; color: #718096; margin-top: 6px;">
-          Files will be saved to Downloads/[folder name]/. Leave empty to save directly to Downloads folder.
-        </div>
+      <div class="field">
+        <label class="title" for="download_directory">Download folder</label>
+        <input type="text" id="download_directory" placeholder="ArticleSongs">
+        <div class="hint">Saved to Downloads/[folder]/. Leave empty to save straight into Downloads.</div>
       </div>
-    </div>
-    
-    <div class="api-section">
-      <h2>Suno Model</h2>
-      <p>Select which Suno AI model to use for music generation.</p>
-      
-      <div style="margin-top: 16px;">
-        <label for="suno_model" style="display: block; font-weight: 500; margin-bottom: 8px; font-size: 14px; color: #4a5568;">
-          Model Version
-        </label>
-        <select id="suno_model" 
-                style="width: 100%; padding: 10px 14px; font-size: 14px; border: 2px solid #cbd5e0; border-radius: 6px; background: white; cursor: pointer;">
-          <option value="V5">V5 - Latest model, studio-grade audio (recommended)</option>
-          <option value="V4.5PLUS">V4.5PLUS - Enhanced lyrics and sound quality</option>
-          <option value="V4.5">V4.5 - Robust for modern pop and rock</option>
-          <option value="V4">V4 - Previous generation model</option>
-          <option value="V3.5">V3.5 - Classic Suno sound</option>
+    </section>
+
+    <section class="card">
+      <h2>Song styles</h2>
+      <p>Rename the six styles in the popup, or change the instructions the lyricist follows for each one.</p>
+      <div style="margin-top: 14px;">
+        <button type="button" class="btn btn-secondary" id="open-style-editor">Edit song styles</button>
+      </div>
+    </section>
+
+    <details class="card" id="advanced">
+      <summary>Advanced <span class="summary-hint">models and parallel generation</span></summary>
+      <div class="field">
+        <label class="title" for="claude_model">Claude model</label>
+        <input type="text" id="claude_model" placeholder="Automatic (newest available)" autocomplete="off">
+        <div class="hint">Leave blank to use the newest model your key can access. A retired model falls back to automatic.</div>
+      </div>
+      <div class="field">
+        <label class="title" for="suno_model">Suno model</label>
+        <select id="suno_model">
+          <option value="V6">V6 - latest (recommended)</option>
+          <option value="V5">V5 - studio-grade audio</option>
+          <option value="V4.5PLUS">V4.5PLUS - richer lyrics and sound</option>
+          <option value="V4.5">V4.5 - modern pop and rock</option>
+          <option value="V4">V4 - previous generation</option>
+          <option value="V3.5">V3.5 - classic Suno sound</option>
         </select>
-        <div style="font-size: 12px; color: #718096; margin-top: 6px;">
-          V5 offers the highest vocal quality and studio-grade audio.
-        </div>
       </div>
-    </div>
-    
-    <div class="api-section">
-      <h2>Song Styles</h2>
-      <p>Customize the 6 song styles used when creating music. Edit names and descriptions to match your creative vision.</p>
-      <button id="open-style-editor" 
-              style="width: 100%; margin-top: 16px; padding: 14px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none; border-radius: 8px; font-weight: 600; cursor: pointer; font-size: 15px; transition: all 0.2s; box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);">
-        Customize Song Styles
-      </button>
-    </div>
-    
-    <div class="button-group">
-      <button id="save">Save Settings</button>
-    </div>
-    
-    <div id="status" class="status"></div>
-    
-    <div class="footer">
-      SunoAPI key is required. Anthropic key is optional (SunoAPI will generate lyrics if not set).
-    </div>
+      <div class="field">
+        <label class="title" for="max_concurrent">Songs generated at once</label>
+        <select id="max_concurrent">
+          <option value="1">1 - one at a time (recommended)</option>
+          <option value="2">2</option>
+          <option value="3">3</option>
+        </select>
+        <div class="hint">Extra songs wait in the queue. Higher values finish a batch sooner but spend credits in parallel.</div>
+      </div>
+    </details>
   </div>
-  
+
+  <div class="saved-toast" id="status" role="status" aria-live="polite"></div>
+
   <script src="options.js"></script>
 </body>
 </html>

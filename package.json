@@ -5,7 +5,10 @@
   "main": "add-on/background.js",
   "scripts": {
     "lint": "eslint add-on/**/*.js",
-    "lint:fix": "eslint add-on/**/*.js --fix"
+    "lint:fix": "eslint add-on/**/*.js --fix",
+    "test": "node tests/queue.test.js && node tests/playqueue.test.js && node tests/playback.test.js && node tests/background-flow.test.js && node tests/rejection.test.js && node tests/pdf.test.js && node tests/credits.test.js",
+    "test:ui": "node tests/popup-ux.test.js && node tests/e2e-ux.test.js && node tests/extraction.test.js",
+    "test:live": "node tests/live-claude.js"
   },
   "keywords": [
     "browser-extension",
@@ -18,6 +21,7 @@
   "author": "",
   "license": "MIT",
   "devDependencies": {
-    "eslint": "^8.56.0"
+    "eslint": "^8.56.0",
+    "playwright-core": "^1.40.0"
   }
 }

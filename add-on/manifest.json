@@ -2,7 +2,7 @@
   "description": "Sing your articles!",
   "manifest_version": 2,
   "name": "Turn articles into songs!",
-  "version": "1.0",
+  "version": "1.2",
   "icons": {
     "48": "icons/glitch_note-48.png",
     "96": "icons/glitch_note-96.png",
@@ -20,7 +20,7 @@
   },
 
   "background": {
-    "scripts": ["logger.js", "prompts.js", "background.js"]
+    "scripts": ["logger.js", "prompts.js", "claude.js", "vendor/pdfjs/pdf.min.js", "pdf.js", "background.js"]
   },
 
   "browser_action": {
@@ -34,6 +34,7 @@
     "menus",
     "notifications",
     "storage",
+    "<all_urls>",
     "https://api.anthropic.com/*",
     "https://api.sunoapi.org/*"
   ],
@@ -41,7 +42,7 @@
   "content_scripts": [
     {
       "matches": ["<all_urls>"],
-      "js": ["Readability.js", "content_script.js"]
+      "js": ["Readability.js", "article_extract.js", "content_script.js"]
     }
   ],
 

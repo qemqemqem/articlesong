@@ -1,6 +1,6 @@
 # Privacy Policy for ArticleSong
 
-**Last Updated:** November 23, 2025  
+**Last Updated:** October 4, 2026  
 **Contact:** richardson.andrew@gmail.com
 
 ---
@@ -15,7 +15,7 @@
 
 **When you click to generate a song, here's what happens:**
 
-1. **Article text is extracted** from the webpage (locally in your browser)
+1. **Article text is extracted** from the webpage (locally in your browser). For a PDF, the extension downloads the PDF from the address you are viewing and reads its text locally.
 2. **Data is sent to SunoAPI** (sunoapi.org) - REQUIRED for all songs
    - Article text or generated lyrics
    - Your SunoAPI key
@@ -27,6 +27,8 @@
 4. **SunoAPI forwards to Suno.ai** for music generation
 5. **Generated audio is returned** to your browser
 
+**Account checks:** when you open the popup or press **Test** in the settings, the extension asks SunoAPI for your remaining credit balance (sending only your SunoAPI key), and asks Anthropic which models your key can use (sending only your Anthropic key). Nothing about the page you are on is sent for these checks.
+
 **IMPORTANT:** We (the extension authors) are NOT affiliated with Suno.ai, SunoAPI.org, or Anthropic. These are independent third-party services with their own privacy policies and data handling practices. We have no control over how they process your data.
 
 ---
@@ -36,7 +38,7 @@
 The following data stays on your device only:
 - **API Keys** - Stored in browser.storage.sync (encrypted by your browser)
 - **Song History** - List of generated songs (stored in browser.storage.local)
-- **Settings** - Your preferences and configuration
+- **Settings** - Your preferences and configuration, including the last song style you picked
 
 This local data is never sent to us or anyone else except as needed to make API calls (your API keys are sent to their respective services).
 
@@ -87,7 +89,7 @@ We do not:
 - **`menus`** - Display song style options
 - **`https://api.anthropic.com/*`** - Make API calls to Claude (optional)
 - **`https://api.sunoapi.org/*`** - Make API calls to SunoAPI (required)
-- **`<all_urls>` (content scripts)** - Extract article text from any webpage you visit (only when you click the icon)
+- **`<all_urls>`** - Extract article text from the page you choose to turn into a song (only when you ask for a song), including downloading a PDF you are viewing so its text can be read. Page text is never read or sent anywhere until you start a song.
 
 ---
 

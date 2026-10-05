@@ -3,83 +3,45 @@
 let currentRequestId = null;
 let currentAudio = null;
 
-// Function to play audio by injecting an <audio> element
-function playAudio(url, requestId) {
-  // Store current request ID
+// Play audio by injecting an <audio> element. Resolves once playback started;
+// rejects if the page's CSP / autoplay policy blocks it, so the background can fall back.
+async function playAudio(url, requestId) {
   currentRequestId = requestId;
+  let audio = document.querySelector('audio[data-article-song]');
   
-  // Check if an audio element already exists
-  let existingAudio = document.querySelector('audio[data-article-song]');
-
-  if (existingAudio) {
-    // If it exists, update its source and play
-    existingAudio.src = url;
-    existingAudio.dataset.requestId = requestId;
-    existingAudio.play();
-    currentAudio = existingAudio;
-  } else {
-    // If it doesn't exist, create a new audio element
-    const audio = document.createElement('audio');
+  if (audio) {
     audio.src = url;
-    audio.controls = true; // Adds controls to play/pause
-    audio.autoplay = true; // Automatically plays the audio
+    audio.dataset.requestId = requestId;
+  } else {
+    audio = document.createElement('audio');
+    audio.src = url;
+    audio.controls = true;
     audio.dataset.articleSong = 'true';
     audio.dataset.requestId = requestId;
-
-    // Insert the audio element at the top of the webpage
     document.body.insertBefore(audio, document.body.firstChild);
-    currentAudio = audio;
-
-    // Track when audio starts playing
-    audio.addEventListener('play', function() {
-      console.log('Article Song audio is playing');
-    });
     
-    // Track when audio ends
     audio.addEventListener('ended', function() {
-      console.log('Article Song audio ended');
       const reqId = audio.dataset.requestId;
       if (reqId) {
-        browser.runtime.sendMessage({
-          action: 'audioEnded',
-          requestId: reqId
-        });
+        browser.runtime.sendMessage({ action: 'audioEnded', requestId: reqId });
       }
     });
-
-    // Error handling
-    audio.addEventListener('error', function(e) {
-      console.error('Failed to load Article Song audio:', e);
-    });
+  }
+  currentAudio = audio;
+  
+  try {
+    await audio.play();
+  } catch (error) {
+    audio.remove(); // don't leave a dead player in the page
+    currentAudio = null;
+    throw error;
   }
 }
 
-// Function to get text content of the page using Readability
+// Article extraction (shadow-DOM flattening, consent-banner removal, Readability) lives in
+// article_extract.js, which is shared with the Android app and loaded before this file.
 function getText() {
-  console.log("Received request to get text content of the page");
-  const documentClone = document.cloneNode(true);
-
-  // Remove tables and info boxes before parsing
-  const tables = documentClone.getElementsByTagName('table');
-  const infoBoxes = documentClone.querySelectorAll('.infobox, .info-box, .sidebar');
-
-  [...tables, ...infoBoxes].forEach(el => el.remove());
-
-  const reader = new Readability(documentClone, {
-    classesToPreserve: [],
-    removeNodes: ['aside', 'figure', 'figcaption'],
-    disableJSONLD: true
-  });
-
-  const article = reader.parse();
-
-  if (article && article.textContent) {
-    console.log("Sending article text to background script");
-    console.log(article.textContent);
-    return article.textContent;
-  } else {
-    return document.body.innerText;
-  }
+  return extractArticleText(document);
 }
 
 // Function to get selected text
@@ -96,12 +58,17 @@ function countWords(text) {
   return text.trim().split(/\s+/).filter(word => word.length > 0).length;
 }
 
+function findAudio(requestId) {
+  if (currentAudio && currentAudio.dataset.requestId === requestId) return currentAudio;
+  return document.querySelector(`audio[data-request-id="${requestId}"]`);
+}
+
 // Listen for messages from the background script
 browser.runtime.onMessage.addListener((request, sender, sendResponse) => {
   if (request.action === "playAudio" && request.url) {
-    // Handle the playAudio action
-    playAudio(request.url, request.requestId);
-    sendResponse({ status: "Audio playing" });
+    playAudio(request.url, request.requestId)
+      .then(() => sendResponse({ success: true }))
+      .catch(error => sendResponse({ success: false, error: error.message }));
   } else if (request.action === "getText") {
     // Handle the getText action
     const text = getText();
@@ -127,9 +94,9 @@ browser.runtime.onMessage.addListener((request, sender, sendResponse) => {
     }
     
     if (audio) {
-      if (audio.paused) {
+      const wantPlay = request.playing !== undefined ? request.playing : audio.paused;
+      if (wantPlay) {
         audio.play().then(() => {
-          console.log('Article Song audio resumed');
           sendResponse({ success: true, isPlaying: true });
         }).catch(error => {
           console.error('Failed to play audio:', error);
@@ -137,7 +104,6 @@ browser.runtime.onMessage.addListener((request, sender, sendResponse) => {
         });
       } else {
         audio.pause();
-        console.log('Article Song audio paused');
         sendResponse({ success: true, isPlaying: false });
       }
     } else {
@@ -160,11 +126,22 @@ browser.runtime.onMessage.addListener((request, sender, sendResponse) => {
         isPlaying: true, // Audio element exists
         isPaused: audio.paused,
         isEnded: audio.ended,
-        currentTime: audio.currentTime
+        currentTime: audio.currentTime,
+        duration: Number.isFinite(audio.duration) ? audio.duration : null
       });
     } else {
       console.log('Audio element not found in DOM');
       sendResponse({ isPlaying: false });
+    }
+  } else if (request.action === "seekAudio") {
+    const audio = findAudio(request.requestId);
+    if (!audio) {
+      sendResponse({ success: false, error: 'Audio element not found' });
+    } else {
+      const target = request.time !== undefined ? request.time : audio.currentTime + request.delta;
+      const max = Number.isFinite(audio.duration) ? audio.duration : Infinity;
+      audio.currentTime = Math.max(0, Math.min(target, max));
+      sendResponse({ success: true, currentTime: audio.currentTime });
     }
   } else if (request.action === "getSelection") {
     // Get selected text and word count

@@ -6,7 +6,8 @@
 echo "📦 Packaging ArticleSong for Firefox..."
 
 # Set output filename
-OUTPUT="articlesong-firefox-v1.0.zip"
+VERSION=$(grep -o '"version": *"[^"]*"' add-on/manifest.json | grep -o '[0-9][0-9.]*')
+OUTPUT="articlesong-firefox-v${VERSION}.zip"
 
 # Remove old package if it exists
 if [ -f "$OUTPUT" ]; then
@@ -18,13 +19,19 @@ fi
 echo "📦 Creating package..."
 cd add-on && zip -r "../$OUTPUT" \
     background.js \
+    claude.js \
+    pdf.js \
+    vendor/ \
     content_script.js \
     logger.js \
     manifest.json \
     popup.html \
     popup.js \
     prompts.js \
+    styles.html \
+    styles.js \
     Readability.js \
+    article_extract.js \
     options.html \
     options.js \
     icons/ \
