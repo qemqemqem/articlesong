@@ -1223,7 +1223,7 @@ function renderSourceLine(tab) {
   const seg = el('div', 'seg');
   seg.setAttribute('role', 'radiogroup');
   seg.setAttribute('aria-label', 'Text to turn into a song');
-  [[true, `Highlighted · ${selectionInfo.wordCount} words`], [false, pageLabel]].forEach(([value, label]) => {
+  [[true, `Highlighted · ${selectionInfo.wordCount.toLocaleString()} words`], [false, pageLabel]].forEach(([value, label]) => {
     const option = el('button', null, label);
     option.setAttribute('role', 'radio');
     option.setAttribute('aria-checked', String(useSelection === value));
