@@ -166,3 +166,6 @@ app/sunoapi/.env
 .aider*
 node_modules/
 *.zip
+
+# Scratch files from tests/firefox.test.js
+tests/.tmp-*

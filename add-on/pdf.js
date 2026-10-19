@@ -19,7 +19,7 @@ const PdfText = {
   /** Fetch `url`; return its bytes if it is a PDF, otherwise null. */
   async fetchPdfBytes(url, { force = false } = {}) {
     if (!/^https?:/i.test(url)) {
-      throw new Error('Only http(s) PDFs can be read (local file:// PDFs are blocked by the browser). Select the text and use "selected text" instead.');
+      throw new Error("Firefox doesn't let add-ons open PDFs on your computer (file://). Press Create in the ArticleSong popup to pick the file instead.");
     }
     const response = await fetch(url);
     if (!response.ok) throw new Error(`Could not download PDF: HTTP ${response.status}`);

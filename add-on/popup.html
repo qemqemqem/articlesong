@@ -152,6 +152,8 @@
     }
     #create-section .section-header { margin-bottom: 10px; }
     .source-line { font-size: 12px; color: var(--muted); display: flex; align-items: center; gap: 6px; margin-bottom: 10px; }
+    .source-hint { font-size: 11.5px; line-height: 1.4; color: var(--muted); margin: -4px 0 10px; }
+    .source-hint:empty { display: none; }
     .source-line .pill { background: #edf2f7; color: #2d3748; border-radius: 999px; padding: 2px 9px; font-weight: 600; }
     .seg { display: inline-flex; background: #edf2f7; border-radius: 999px; padding: 2px; }
     .seg button {
@@ -485,6 +487,7 @@
       </div>
 
       <div class="source-line" id="source-line"></div>
+      <div class="source-hint" id="source-hint"></div>
 
       <div class="style-picker">
         <div class="chips" id="style-buttons" role="radiogroup" aria-label="Song style">

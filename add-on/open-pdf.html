@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Pick the PDF - ArticleSong</title>
+  <style>
+    :root {
+      --primary: #5a67d8;
+      --primary-hover: #4c51bf;
+      --primary-soft: #ebf4ff;
+      --text: #2d3748;
+      --muted: #5a6577;
+      --border: #e2e8f0;
+      --danger: #c53030;
+      --ok: #276749;
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+      background: linear-gradient(135deg, #5a67d8 0%, #6b46c1 100%);
+      min-height: 100vh;
+      padding: 40px 16px;
+      display: flex;
+      justify-content: center;
+      align-items: flex-start;
+      color: var(--text);
+    }
+    .card {
+      background: white;
+      border-radius: 16px;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+      max-width: 560px;
+      width: 100%;
+      padding: 28px;
+    }
+    h1 { font-size: 22px; margin-bottom: 8px; }
+    .lede { font-size: 14px; line-height: 1.5; color: var(--muted); margin-bottom: 18px; }
+    .file-name { color: var(--text); font-weight: 600; overflow-wrap: anywhere; }
+    .drop {
+      display: flex; flex-direction: column; align-items: center; gap: 6px;
+      border: 2px dashed #cbd5e0; border-radius: 12px; padding: 28px 16px; text-align: center; cursor: pointer;
+      transition: border-color 0.12s, background 0.12s;
+    }
+    .drop:hover, .drop.over { border-color: var(--primary); background: var(--primary-soft); }
+    .drop input { position: absolute; width: 1px; height: 1px; opacity: 0; }
+    .drop-title { font-size: 15px; font-weight: 600; color: var(--primary-hover); }
+    .drop-sub { font-size: 12.5px; color: var(--muted); overflow-wrap: anywhere; }
+    .card.busy .drop { pointer-events: none; opacity: 0.5; }
+    .status { font-size: 14px; line-height: 1.5; margin-top: 16px; min-height: 21px; }
+    .status.error { color: var(--danger); }
+    .status.ok { color: var(--ok); }
+    .btn {
+      margin-top: 16px; border: none; border-radius: 8px; padding: 10px 16px; font: inherit; font-weight: 600;
+      background: var(--primary); color: white; cursor: pointer;
+    }
+    .btn:hover { background: var(--primary-hover); }
+  </style>
+</head>
+<body>
+  <main class="card" id="card">
+    <h1>Pick the PDF to sing</h1>
+    <p class="lede">Firefox doesn't let add-ons open files on your computer, so choose
+      <span class="file-name" id="file-name">the PDF</span> here and ArticleSong will make your
+      <span id="style-name">song</span>. Only the text is used.</p>
+    <label class="drop" id="drop">
+      <input type="file" id="file-input" accept="application/pdf,.pdf">
+      <span class="drop-title">Choose the PDF&hellip;</span>
+      <span class="drop-sub" id="folder">or drop it here</span>
+    </label>
+    <div class="status" id="status" role="status"></div>
+    <button class="btn" id="back-btn" hidden>Back to the PDF</button>
+  </main>
+  <script src="vendor/pdfjs/pdf.min.js"></script>
+  <script src="pdf.js"></script>
+  <script src="open-pdf.js"></script>
+</body>
+</html>

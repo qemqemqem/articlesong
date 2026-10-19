@@ -13,7 +13,7 @@ const stub = (state) => `
       local: { get: async () => ({}), set: async () => {} },
       onChanged: { addListener() {} }
     },
-    tabs: { query: async () => [{ id: 1, url: state.url, title: 'Page' }], sendMessage: async () => ({ hasSelection: false }), create: async () => {} },
+    tabs: { query: async () => [{ id: 1, url: state.url, title: 'Page' }], create: async () => {} },
     runtime: {
       openOptionsPage() {},
       onMessage: { addListener() {} },

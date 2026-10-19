@@ -34,6 +34,8 @@ cd add-on && zip -r "../$OUTPUT" \
     article_extract.js \
     options.html \
     options.js \
+    open-pdf.html \
+    open-pdf.js \
     icons/ \
     -x "*.DS_Store" \
     -x "*debug*"

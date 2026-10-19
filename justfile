@@ -35,6 +35,11 @@ test-addon:
     npm test
     node tests/recipe.test.js
 
+# The add-on in real headless Firefox (iframes, the PDF viewer, local PDFs); needs firefox + geckodriver
+[group('add-on')]
+test-firefox:
+    npm run test:firefox
+
 [group('add-on')]
 lint-addon:
     npm run lint
