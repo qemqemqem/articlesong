@@ -44,20 +44,6 @@ function getText() {
   return extractArticleText(document);
 }
 
-// Function to get selected text
-function getSelectedText() {
-  const selection = window.getSelection();
-  const text = selection.toString().trim();
-  console.log("Selected text:", text ? `${text.length} chars` : 'none');
-  return text;
-}
-
-// Function to count words in text
-function countWords(text) {
-  if (!text) return 0;
-  return text.trim().split(/\s+/).filter(word => word.length > 0).length;
-}
-
 function findAudio(requestId) {
   if (currentAudio && currentAudio.dataset.requestId === requestId) return currentAudio;
   return document.querySelector(`audio[data-request-id="${requestId}"]`);
@@ -143,15 +129,6 @@ browser.runtime.onMessage.addListener((request, sender, sendResponse) => {
       audio.currentTime = Math.max(0, Math.min(target, max));
       sendResponse({ success: true, currentTime: audio.currentTime });
     }
-  } else if (request.action === "getSelection") {
-    // Get selected text and word count
-    const selectedText = getSelectedText();
-    const wordCount = countWords(selectedText);
-    sendResponse({ 
-      hasSelection: wordCount > 0,
-      selectedText: selectedText,
-      wordCount: wordCount
-    });
   }
 
   // Returning true keeps the message channel open for async responses

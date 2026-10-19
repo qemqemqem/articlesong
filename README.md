@@ -99,6 +99,7 @@ add-on/
 ├── prompts.js          # Battle-tested prompts for lyrics generation
 ├── logger.js           # Persistent logging system
 ├── content_script.js   # Page interaction and audio playback
+├── open-pdf.html/js    # Picks a local PDF (Firefox won't let add-ons read file:// URLs)
 ├── options.html/js     # Settings page for API keys
 ├── debug.html/js       # Real-time log viewer
 ├── Readability.js      # Article text extraction library
@@ -118,6 +119,17 @@ old-python-backend/     # Archived Python version (for reference)
 ### Custom Song Style:
 1. Right-click the extension button
 2. Choose song style from menu
+
+### Just part of a page:
+- Highlight the text before opening the popup; it offers **Highlighted · N words** (on by default) or the whole page. This works inside iframes too.
+- Or highlight it, right-click, and choose **Make a song from the selection**: the popup opens with that text. This is the way to do it in Firefox's PDF viewer, where the popup can't see a selection (Firefox passes up to 16k characters).
+
+### PDFs:
+- Online PDFs (http/https) are read directly with the bundled pdf.js.
+- A PDF on your computer (`file://`) can't be read by add-ons, so pressing **Create** opens a page where you pick (or drop) the file; the song starts as soon as it is read.
+
+### Embedded articles:
+- When a page is a thin shell around an iframe (Hugging Face Spaces, for example), ArticleSong reads the frame with the most article text. Very long articles are cut to the first 100,000 characters.
 3. Wait for generation
 4. Enjoy your custom song!
 
@@ -183,7 +195,7 @@ old-python-backend/     # Archived Python version (for reference)
 
 ### Audio doesn't play
 - Check browser console for errors
-- Make sure you're on a valid article page (not a PDF or image)
+- Make sure you're on an article page or a PDF (not an image)
 - Try reloading the page and clicking the extension again
 
 ## 🎯 Sharing with Friends

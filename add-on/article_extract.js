@@ -4,13 +4,16 @@
 // Readability.js + this file into a WebView and calls extractArticle(document), so keep this
 // file free of extension APIs (no `browser.*`).
 
+// `var`, not `const`: the add-on injects this file into every frame of a page when the article is in an
+// iframe, and a second injection into the same frame must not throw "redeclaration of const".
+
 // Cookie / consent popups are short; a big container that merely has "cookie" in its class is not one.
-const CONSENT_SELECTORS = [
+var CONSENT_SELECTORS = [
   '[role="dialog"]', '[role="alertdialog"]', '[aria-modal="true"]', 'dialog',
   '[class*="cookie" i]', '[id*="cookie" i]', '[class*="consent" i]', '[id*="consent" i]',
   '[class*="gdpr" i]', '[id*="gdpr" i]', '#onetrust-consent-sdk', '#CybotCookiebotDialog'
 ].join(',');
-const MAX_CONSENT_BANNER_CHARS = 1500;
+var MAX_CONSENT_BANNER_CHARS = 1500;
 
 // document.cloneNode(true) drops shadow roots (and innerText never sees into them), so a page built from
 // web components looks empty to Readability. Deep-clone, appending each open shadow root's children

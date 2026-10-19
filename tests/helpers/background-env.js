@@ -8,7 +8,7 @@ function makeEnv({ local = {}, sync = {}, settings = {}, failAnthropicFor = () =
     local: { ...local, settings: { ...(local.settings || {}), ...settings } }
   };
   const listeners = [];
-  const env = { generatedLyrics: [], rewritePrompts: [], sunoBanned: [], sunoRejectAt: 'poll', sunoFailStatus: null, rejected: {}, tabState: { paused: false, currentTime: 3, duration: 100 }, tabLatency: 0, failStatus: 0, tabMode: 'ok', playAudioReply: { success: true }, backgroundAudioMode: 'ok', audios: [], injected: 0, hold: false, held: [], generated: [], playAudioCalls: [], fetchLog: [], broadcasts: [], store };
+  const env = { generatedLyrics: [], rewritePrompts: [], sunoBanned: [], sunoRejectAt: 'poll', sunoFailStatus: null, rejected: {}, tabState: { paused: false, currentTime: 3, duration: 100 }, tabLatency: 0, failStatus: 0, tabMode: 'ok', playAudioReply: { success: true }, backgroundAudioMode: 'ok', audios: [], injected: 0, menuItems: [], popupsOpened: 0, hold: false, held: [], generated: [], playAudioCalls: [], fetchLog: [], broadcasts: [], store };
   const area = name => ({
     get: async k => (Array.isArray(k) ? Object.fromEntries(k.map(x => [x, store[name][x]])) : { [k]: store[name][k] }),
     set: async o => Object.assign(store[name], JSON.parse(JSON.stringify(o))),
@@ -61,11 +61,20 @@ function makeEnv({ local = {}, sync = {}, settings = {}, failAnthropicFor = () =
           if (m.action === 'stopAudio') { env.tabControl = env.tabControl || []; env.tabControl.push(m.action); return { status: 'Audio stopped' }; }
           return { status: 'ready' };
         },
-        executeScript: async () => { if (env.tabMode === 'none') throw new Error('Missing host permission'); env.injected++; },
+        executeScript: async (id, details = {}) => {
+          if (env.tabMode === 'none') throw new Error('Missing host permission');
+          if (!details.allFrames) { env.injected++; return [undefined]; }
+          // Every frame of the page: env.frames = [{ text, selection }], the top frame first
+          const frames = env.frames || [{ text: env.pageText, selection: '' }];
+          if (details.file) return frames.map(() => undefined);
+          if (/getSelection/.test(details.code)) return frames.map(f => f.selection || '');
+          if (/extractArticleText/.test(details.code)) return frames.map(f => f.text || '');
+          throw new Error('unexpected executeScript ' + JSON.stringify(details));
+        },
         query: async () => [{ id: 1 }]
       },
-      menus: { create() {}, onClicked: { addListener() {} } },
-      browserAction: { setBadgeText() {}, setBadgeBackgroundColor() {} },
+      menus: { create(item) { env.menuItems.push(item); }, onClicked: { addListener: f => { env.menuClick = f; } } },
+      browserAction: { setBadgeText() {}, setBadgeBackgroundColor() {}, openPopup: async () => { env.popupsOpened++; } },
       notifications: { create() {} },
       downloads: { download: async () => 1 }
     },

@@ -221,20 +221,21 @@ async function loadData() {
   }
 }
 
-// Check for selected text in active tab
+function countWords(text) {
+  return (text || '').split(/\s+/).filter(Boolean).length;
+}
+
+// Highlighted text in the active tab (any frame), or text sent over from the "Make a song from the selection" menu
 async function checkSelection() {
-  try {
-    const tabs = await browser.tabs.query({active: true, currentWindow: true});
-    if (tabs && tabs.length > 0) {
-      activeTab = tabs[0];
-      const response = await browser.tabs.sendMessage(tabs[0].id, { action: 'getSelection' });
-      if (response && response.hasSelection) {
-        selectionInfo = response;
-        useSelection = true; // Auto-enable if text is selected
-      }
+  const tabs = await browser.tabs.query({active: true, currentWindow: true});
+  activeTab = tabs[0] || null;
+  if (activeTab) {
+    const { text } = await browser.runtime.sendMessage({ action: 'getSelection', tabId: activeTab.id, tabUrl: activeTab.url });
+    const wordCount = countWords(text);
+    if (wordCount > 0) {
+      selectionInfo = { hasSelection: true, selectedText: text, wordCount };
+      useSelection = true; // Auto-enable if text is selected
     }
-  } catch (error) {
-    console.log('Could not check selection (content script may not be loaded):', error);
   }
   renderSourceLine(activeTab);
 }
@@ -1196,10 +1197,24 @@ function isPdfUrl(url) {
 }
 
 // "What will be sung": highlighted words, PDF, or the page
+// Firefox won't let add-ons read file:// URLs, so for a PDF on disk Create asks the user to pick the file
+function isLocalPdf(tab) {
+  return !!tab && /^file:/i.test(tab.url) && isPdfUrl(tab.url);
+}
+
+function sourceHint(tab) {
+  if (selectionInfo.hasSelection) return '';
+  if (isLocalPdf(tab)) return "Firefox doesn't let add-ons open files on your computer, so Create will ask you to pick this PDF.";
+  // The popup can't see a selection inside Firefox's PDF viewer, but the context menu can
+  if (tab && isPdfUrl(tab.url)) return 'Want just part of it? Highlight it, right-click and choose "Make a song from the selection".';
+  return 'Want just part of the page? Highlight it before opening ArticleSong.';
+}
+
 function renderSourceLine(tab) {
   const line = document.getElementById('source-line');
   line.innerHTML = '';
   line.appendChild(el('span', null, 'From:'));
+  document.getElementById('source-hint').textContent = sourceHint(tab);
   const pageLabel = tab && isPdfUrl(tab.url) ? 'PDF document' : 'Whole page';
   if (!selectionInfo.hasSelection) {
     line.appendChild(el('span', 'pill', pageLabel));
@@ -1208,7 +1223,7 @@ function renderSourceLine(tab) {
   const seg = el('div', 'seg');
   seg.setAttribute('role', 'radiogroup');
   seg.setAttribute('aria-label', 'Text to turn into a song');
-  [[true, `Highlighted · ${selectionInfo.wordCount} words`], [false, pageLabel]].forEach(([value, label]) => {
+  [[true, `Highlighted · ${selectionInfo.wordCount.toLocaleString()} words`], [false, pageLabel]].forEach(([value, label]) => {
     const option = el('button', null, label);
     option.setAttribute('role', 'radio');
     option.setAttribute('aria-checked', String(useSelection === value));
@@ -1327,6 +1342,10 @@ async function createSong(style) {
     
     const tab = tabs[0];
     const shouldUseSelection = useSelection && selectionInfo.hasSelection;
+    if (!shouldUseSelection && isLocalPdf(tab)) {
+      await openPdfPicker(tab, style);
+      return true;
+    }
     
     const response = await browser.runtime.sendMessage({ 
       action: 'createSong',
@@ -1334,8 +1353,7 @@ async function createSong(style) {
       tabId: tab.id,
       tabTitle: tab.title,
       tabUrl: tab.url,
-      useSelection: shouldUseSelection,
-      selectedText: shouldUseSelection ? selectionInfo.selectedText : null
+      text: shouldUseSelection ? selectionInfo.selectedText : null
     });
     
     if (response && !response.success) {
@@ -1362,6 +1380,13 @@ async function createSong(style) {
     await loadData();
     renderUI();
   }
+}
+
+// open-pdf.html reads the file the user picks and starts the song with this style
+async function openPdfPicker(tab, style) {
+  const params = new URLSearchParams({ tabId: tab.id, url: tab.url, title: tab.title || '', style: JSON.stringify(style) });
+  await browser.tabs.create({ url: `open-pdf.html?${params}`, openerTabId: tab.id });
+  window.close();
 }
 
 async function createCustomStyleSong() {

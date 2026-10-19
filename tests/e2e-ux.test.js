@@ -14,7 +14,7 @@ const stub = `
   window.__tab = { id: 1, url: 'https://example.com/diesel', title: 'The Diesel Weapon - by Ed Conway' };
   window.browser = {
     storage: { sync: { get: async () => ({ suno_api_key: 'x'.repeat(20) }), set: async () => {} }, local: { get: async () => ({}), set: async () => {} }, onChanged: { addListener() {} } },
-    tabs: { query: async () => [window.__tab], sendMessage: async () => ({ hasSelection: false }), create: async () => {} },
+    tabs: { query: async () => [window.__tab], create: async () => {} },
     runtime: { openOptionsPage() {}, onMessage: { addListener: f => window.__listeners.push(f) }, sendMessage: async m => { const r = await window.__bg(m); const d = (window.__delays[m.action] || []).shift(); if (d) await new Promise(res => setTimeout(res, d)); return r; } }
   };`;
 

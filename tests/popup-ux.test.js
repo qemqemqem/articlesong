@@ -9,15 +9,20 @@ const stub = (opts) => `
   const opts = ${JSON.stringify(opts)};
   const now = Date.now();
   window.__sent = [];
+  window.__messages = [];
+  window.__created = [];
+  window.close = () => { window.__closed = true; };
   window.__requests = opts.requests.map(r => ({ ...r, timestamps: { created: now - 5000, completed: ['LYRICS', 'QUEUED'].includes(r.status) ? null : now - 1000 }, progress: { estimated: 180 } }));
   window.__failNext = opts.failCreate;
   window.browser = {
     storage: { sync: { get: async () => ({ suno_api_key: 'x'.repeat(20) }), set: async () => {} }, local: { get: async () => ({}), set: async () => {} }, onChanged: { addListener() {} } },
-    tabs: { query: async () => [{ id: 1, url: 'https://example.com/post', title: 'A Post' }], sendMessage: async () => ({ hasSelection: false }), create: async () => {} },
+    tabs: { query: async () => [opts.tab || { id: 1, url: 'https://example.com/post', title: 'A Post' }], create: async t => { window.__created.push(t); } },
     runtime: {
       openOptionsPage() {}, onMessage: { addListener() {} },
       sendMessage: async (m) => {
         window.__sent.push(m.action);
+        window.__messages.push(m);
+        if (m.action === 'getSelection') return { text: opts.selection || '' };
         if (m.action === 'getRequests') return { requests: window.__requests, settings: {} };
         if (m.action === 'createSong') {
           await new Promise(r => setTimeout(r, opts.createDelay));
@@ -154,6 +159,68 @@ async function open(browser, opts) {
     check('the ⋯ menu offers download, copy and remove', /Download/.test(await done.locator('.menu').textContent()) && /Copy lyrics/.test(await done.locator('.menu').textContent()) && /Remove/.test(await done.locator('.menu').textContent()));
     await page.keyboard.press('Escape');
     check('Escape closes the menu', await page.locator('.menu').count() === 0);
+    await page.close();
+  }
+
+  // 5. highlighted text: offered and on by default, and the whole page is one click away
+  {
+    const page = await open(browser, { selection: 'Bees use the sun to find their way home.' });
+    const seg = page.locator('#source-line .seg button');
+    check('selection offered with its word count', (await seg.first().textContent()) === 'Highlighted · 9 words', await page.textContent('#source-line'));
+    check('selection is the default source', (await seg.first().getAttribute('aria-checked')) === 'true');
+    check('no hint once text is highlighted', (await page.textContent('#source-hint')) === '');
+    await page.click('#create-btn');
+    await page.waitForSelector('#pending-card', { state: 'detached' });
+    const msg = await page.evaluate(() => window.__messages.find(m => m.action === 'createSong'));
+    check('Create sends the highlighted text', msg.text === 'Bees use the sun to find their way home.', JSON.stringify(msg));
+    check('asked the background for the selection of this tab', await page.evaluate(() => window.__messages.some(m => m.action === 'getSelection' && m.tabId === 1 && m.tabUrl === 'https://example.com/post')));
+    await page.close();
+  }
+  {
+    const page = await open(browser, { selection: 'Bees use the sun.' });
+    await page.locator('#source-line .seg button', { hasText: 'Whole page' }).click();
+    await page.click('#create-btn');
+    await page.waitForSelector('#pending-card', { state: 'detached' });
+    const msg = await page.evaluate(() => window.__messages.find(m => m.action === 'createSong'));
+    check('"Whole page" sends no text, so the background reads the page', msg.text === null, JSON.stringify(msg));
+    await page.close();
+  }
+
+  // 6. how to use just part of a page or PDF is spelled out
+  {
+    const page = await open(browser, {});
+    check('web page: hint says to highlight first', /Highlight it before opening ArticleSong/.test(await page.textContent('#source-hint')));
+    await page.close();
+  }
+  {
+    const page = await open(browser, { tab: { id: 2, url: 'https://arxiv.org/pdf/2510.01234.pdf', title: 'Paper' } });
+    check('PDF: source is the PDF', (await page.textContent('#source-line .pill')) === 'PDF document');
+    check('PDF: hint points to the selection menu', /right-click and choose "Make a song from the selection"/.test(await page.textContent('#source-hint')), await page.textContent('#source-hint'));
+    await page.close();
+  }
+
+  // 7. local PDF: Firefox won't let the add-on read it, so Create opens the file picker page instead
+  {
+    const tab = { id: 3, url: 'file:///home/k/papers/smol%20playbook.pdf', title: 'The Smol Training Playbook' };
+    const page = await open(browser, { tab });
+    check('local PDF: hint says Create will ask for the file', /pick this PDF/.test(await page.textContent('#source-hint')), await page.textContent('#source-hint'));
+    await page.locator('#style-buttons button', { hasText: 'Informative' }).click();
+    await page.click('#create-btn');
+    await page.waitForTimeout(200);
+    check('local PDF: nothing is sent to the background', (await sent(page, 'createSong')) === 0);
+    const created = await page.evaluate(() => window.__created);
+    const q = created.length === 1 && new URL(created[0].url, 'moz-extension://x/').searchParams;
+    check('local PDF: picker page opened next to the PDF', created.length === 1 && created[0].url.startsWith('open-pdf.html?') && created[0].openerTabId === 3, JSON.stringify(created));
+    check('picker gets the tab, its title and the chosen style', q && q.get('tabId') === '3' && q.get('url') === tab.url && q.get('title') === tab.title && JSON.parse(q.get('style')).id === 'informative', created[0] && created[0].url);
+    check('popup closes itself', await page.evaluate(() => window.__closed === true));
+    await page.close();
+  }
+  {
+    const page = await open(browser, { tab: { id: 3, url: 'file:///home/k/a.pdf', title: 'A' }, selection: 'Abstract: bees navigate by the sun.' });
+    await page.click('#create-btn');
+    await page.waitForSelector('#pending-card', { state: 'detached' });
+    const msg = await page.evaluate(() => window.__messages.find(m => m.action === 'createSong'));
+    check('local PDF with a selection (from the menu) just uses it', msg && msg.text === 'Abstract: bees navigate by the sun.' && (await page.evaluate(() => window.__created.length)) === 0, JSON.stringify(msg));
     await page.close();
   }
 

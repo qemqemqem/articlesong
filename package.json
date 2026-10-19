@@ -6,8 +6,9 @@
   "scripts": {
     "lint": "eslint add-on/**/*.js",
     "lint:fix": "eslint add-on/**/*.js --fix",
-    "test": "node tests/queue.test.js && node tests/playqueue.test.js && node tests/playback.test.js && node tests/background-flow.test.js && node tests/rejection.test.js && node tests/pdf.test.js && node tests/credits.test.js",
+    "test": "node tests/queue.test.js && node tests/playqueue.test.js && node tests/playback.test.js && node tests/background-flow.test.js && node tests/rejection.test.js && node tests/pdf.test.js && node tests/credits.test.js && node tests/page-text.test.js",
     "test:ui": "node tests/popup-ux.test.js && node tests/e2e-ux.test.js && node tests/extraction.test.js",
+    "test:firefox": "node tests/firefox.test.js",
     "test:live": "node tests/live-claude.js"
   },
   "keywords": [

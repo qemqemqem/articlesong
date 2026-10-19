@@ -119,10 +119,10 @@ const RUNNING_STATUSES = ['RECEIVED', 'LYRICS', 'MUSIC']; // occupy a generation
 const ACTIVE_STATUSES = ['QUEUED', ...RUNNING_STATUSES, 'PLAYING'];
 const startsInFlight = new Set(); // keys claimed synchronously, before the request object exists
 
-// Same page + same style + same highlighted text = same song
-function songKey(tabUrl, songStyle, selectedText) {
+// Same page + same style + same provided text = same song
+function songKey(tabUrl, songStyle, providedText) {
   const styleId = typeof songStyle === 'object' ? songStyle.id : songStyle;
-  return `${tabUrl}|${styleId}|${selectedText ? selectedText.slice(0, 120) : ''}`;
+  return `${tabUrl}|${styleId}|${providedText ? providedText.slice(0, 120) : ''}`;
 }
 
 function isDuplicateStart(key) {
@@ -137,35 +137,85 @@ const DUPLICATE_MESSAGE = 'This song is already being generated. Cancel it first
 // ============================================================================
 
 const MIN_ARTICLE_CHARS = 200;
+// A whole book of a page still makes one song; past this it only costs Claude input (PDFs stop here too)
+const MAX_ARTICLE_CHARS = 100000;
+const SELECTION_MENU_TITLE = 'Make a song from the selection';
+const SELECTION_HINT = `highlight the part you want, right-click it and choose "${SELECTION_MENU_TITLE}"`;
 
 // A page that yields only a cookie banner or an empty shell would otherwise become a song about
 // accepting cookies. Fail loudly instead.
-function requireEnoughText(text, tabUrl) {
+function requireEnoughText(text) {
   const length = (text || '').trim().length;
   if (length < MIN_ARTICLE_CHARS) {
     throw new Error(`Could not find the article on this page (only ${length} characters of text). ` +
-      'Highlight the text you want and use "highlighted text" instead.');
+      `To use part of it, ${SELECTION_HINT}.`);
   }
   return text;
+}
+
+function longest(texts) {
+  return texts.reduce((best, text) => (typeof text === 'string' && text.length > best.length ? text : best), '');
+}
+
+// The content script only runs in the top frame. Some pages (Hugging Face Spaces, embedded readers) are a
+// thin shell around a cross-origin iframe that holds the article, so read every frame and keep the longest.
+async function longestFrameText(tabId) {
+  try {
+    await browser.tabs.executeScript(tabId, { allFrames: true, file: 'Readability.js' });
+    await browser.tabs.executeScript(tabId, { allFrames: true, file: 'article_extract.js' });
+    return longest(await browser.tabs.executeScript(tabId, {
+      allFrames: true,
+      code: 'try { extractArticleText(document) } catch (e) { "" }'
+    }));
+  } catch (error) {
+    Logger.warn('Could not read the frames of this page', error.message);
+    return '';
+  }
 }
 
 async function getArticleText(tabId, tabUrl) {
   if (PdfText.looksLikePdfUrl(tabUrl)) {
     Logger.info('PDF URL detected, extracting text with pdf.js', { tabUrl });
-    return requireEnoughText(await PdfText.fromUrl(tabUrl, { force: true }), tabUrl);
+    return requireEnoughText(await PdfText.fromUrl(tabUrl, { force: true }));
   }
   try {
     await ensureContentScript(tabId); // tabs opened before an add-on update have none until reloaded
     const content = await browser.tabs.sendMessage(tabId, { action: "getText" });
-    if (content && content.text) return requireEnoughText(content.text, tabUrl);
+    if (content && typeof content.text === 'string') {
+      if (content.text.trim().length >= MIN_ARTICLE_CHARS) return content.text;
+      Logger.info(`Top frame has only ${content.text.trim().length} characters, reading the page's frames`);
+      const frameText = await longestFrameText(tabId);
+      return requireEnoughText(frameText.length > content.text.length ? frameText : content.text);
+    }
   } catch (error) {
     if (/Could not find the article/.test(error.message)) throw error;
     // Firefox's PDF viewer (and other privileged pages) have no content script
     Logger.warn('Content script unavailable, checking whether the tab is a PDF', error.message);
   }
   const pdfText = await PdfText.fromUrl(tabUrl);
-  if (pdfText) return requireEnoughText(pdfText, tabUrl);
-  throw new Error('Could not read this page. Try reloading it, or select text and use "selected text".');
+  if (pdfText) return requireEnoughText(pdfText);
+  throw new Error(`Could not read this page. Try reloading it, or ${SELECTION_HINT}.`);
+}
+
+// Highlighted text in any frame of the tab. Pages that can't be scripted (Firefox's PDF viewer, about:
+// pages) have none we can see; there the selection arrives through the context menu instead.
+let menuSelection = null; // { tabId, url, text } from the last "Make a song from the selection" click
+
+async function getPageSelection(tabId) {
+  try {
+    return longest(await browser.tabs.executeScript(tabId, { allFrames: true, code: 'String(window.getSelection()).trim()' }));
+  } catch (error) {
+    Logger.info('Could not read the selection on this tab', error.message);
+    return '';
+  }
+}
+
+// The page's live selection, else the one handed over by the context menu (used once, then forgotten)
+async function selectionFor(tabId, tabUrl) {
+  const live = await getPageSelection(tabId);
+  const fromMenu = menuSelection && menuSelection.tabId === tabId && menuSelection.url === tabUrl ? menuSelection.text : '';
+  if (fromMenu) menuSelection = null;
+  return live || fromMenu;
 }
 
 // ============================================================================
@@ -239,6 +289,11 @@ function createRequest(articleText, articleUrl, articleTitle, songStyle, tabId, 
     descriptionPreview: styleObj.description ? styleObj.description.substring(0, 80) + '...' : 'none'
   });
   
+  if (articleText.length > MAX_ARTICLE_CHARS) {
+    Logger.info(`Article is ${articleText.length} characters; using the first ${MAX_ARTICLE_CHARS}`);
+    articleText = articleText.slice(0, MAX_ARTICLE_CHARS);
+  }
+
   const request = {
     id: generateRequestId(),
     articleTitle,
@@ -1260,6 +1315,11 @@ browser.runtime.onMessage.addListener((message, sender, sendResponse) => {
     return true;
   }
   
+  if (message.action === 'getSelection') {
+    selectionFor(message.tabId, message.tabUrl).then(text => sendResponse({ text }));
+    return true;
+  }
+
   if (message.action === 'createSong') {
     // Handle song creation from popup
     (async () => {
@@ -1271,8 +1331,9 @@ browser.runtime.onMessage.addListener((message, sender, sendResponse) => {
         });
         
         await initialized;
-        const selectedText = message.useSelection && message.selectedText ? message.selectedText : null;
-        const key = songKey(message.tabUrl, message.songStyle, selectedText);
+        // Text the sender already has (a highlighted passage, or a PDF file the user picked); otherwise read the tab
+        const providedText = message.text || null;
+        const key = songKey(message.tabUrl, message.songStyle, providedText);
         if (queuedRequests().length >= MAX_QUEUE_LENGTH) {
           sendResponse({ success: false, error: `The queue is full (${MAX_QUEUE_LENGTH} songs). Cancel some or wait for them to finish.` });
           return;
@@ -1286,9 +1347,9 @@ browser.runtime.onMessage.addListener((message, sender, sendResponse) => {
         let request;
         try {
           let articleText;
-          if (selectedText) {
-            articleText = selectedText;
-            Logger.info(`Using ${selectedText.split(/\s+/).length} words of selected text`);
+          if (providedText) {
+            articleText = providedText;
+            Logger.info(`Using ${providedText.split(/\s+/).length} words of provided text`);
           } else {
             articleText = await getArticleText(message.tabId, message.tabUrl);
           }
@@ -1602,11 +1663,26 @@ browser.menus.create({
   contexts: ["browser_action"]
 });
 
+// Works where the popup can't see a selection (Firefox's PDF viewer); Firefox passes up to 16k characters
+browser.menus.create({
+  id: "song-from-selection",
+  title: SELECTION_MENU_TITLE,
+  contexts: ["selection"]
+});
+
 // ============================================================================
 // EVENT LISTENERS
 // ============================================================================
 
 browser.menus.onClicked.addListener(async (info, tab) => {
+  if (info.menuItemId === 'song-from-selection') {
+    // Hand the text to the popup, which picks the style and shows the cost like any other song.
+    // openPopup must run synchronously inside the click handler.
+    menuSelection = { tabId: tab.id, url: tab.url, text: (info.selectionText || '').trim() };
+    browser.browserAction.openPopup({ windowId: tab.windowId })
+      .catch(error => Logger.error('Could not open the popup for the selection', error));
+    return;
+  }
   try {
     const articleText = await getArticleText(tab.id, tab.url);
     
