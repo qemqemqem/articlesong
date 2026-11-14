@@ -27,6 +27,15 @@ class FakeApis : Dispatcher() {
     var lyrics = LYRICS
     var styleTags = "Sunlit Indie Folk, Warm, 96 BPM, Fingerpicked Guitar, Breathy Vocals"
     var songTitle = "The Waggle Dance"
+    /**
+     * Suno's content filter: a submit whose lyrics or style contain one of these words (any case)
+     * is rejected with Suno's real wording, while polling or, with [rejectAtSubmit], by /generate itself.
+     */
+    var sunoBanned: List<String> = emptyList()
+    var rejectAtSubmit = false
+    /** Lyrics of every /generate call, in order. */
+    val submittedLyrics = CopyOnWriteArrayList<String>()
+    private val rejectedTasks = java.util.concurrent.ConcurrentHashMap<String, String>()
     /** Optional scripted responses for /v1/messages, consumed in order before the defaults. */
     val claudeScript = ArrayDeque<MockResponse>()
     var audioBytes: ByteArray = ByteArray(2048) { (it % 251).toByte() }
@@ -66,10 +75,16 @@ class FakeApis : Dispatcher() {
                 val model = Regex("\"model\":\"([^\"]+)\"").find(body)?.groupValues?.get(1) ?: "claude-opus-5-5"
                 claudeMessage(model, if (body.contains("music style consultant")) styleTags else lyrics)
             }
-            "/api/v1/generate" -> json("""{"code":$generateCode,"msg":"${if (generateCode == 200) "success" else "nope"}","data":{"taskId":"task-1"}}""")
+            "/api/v1/generate" -> submit(request.body?.utf8().orEmpty())
             "/api/v1/generate/record-info" -> {
-                val status = sunoStatuses[minOf(recordInfoPolls++, sunoStatuses.lastIndex)]
-                json(recordInfo(status))
+                val rejection = rejectedTasks[request.url.queryParameter("taskId")]
+                if (rejection != null) {
+                    json("""{"code":200,"msg":"success","data":{"taskId":"task-x","status":"SENSITIVE_WORD_ERROR","errorCode":400,
+                        "response":{"taskId":"task-x","sunoData":null},"errorMessage":${quote(rejection)}}}""")
+                } else {
+                    val status = sunoStatuses[minOf(recordInfoPolls++, sunoStatuses.lastIndex)]
+                    json(recordInfo(status))
+                }
             }
             "/api/v1/lyrics" -> json("""{"code":200,"msg":"success","data":{"taskId":"lyrics-1"}}""")
             "/api/v1/lyrics/record-info" -> json(
@@ -83,6 +98,18 @@ class FakeApis : Dispatcher() {
             "/cover.jpg" -> MockResponse.Builder().setHeader("Content-Type", "image/jpeg").body(Buffer().write(coverBytes)).build()
             else -> MockResponse.Builder().code(404).body("not found").build()
         }
+    }
+
+    private fun submit(body: String): MockResponse {
+        val sent = runCatching { kotlinx.serialization.json.Json.parseToJsonElement(body) as kotlinx.serialization.json.JsonObject }.getOrNull()
+        fun field(name: String) = (sent?.get(name) as? kotlinx.serialization.json.JsonPrimitive)?.content.orEmpty()
+        submittedLyrics += field("prompt")
+        val taskId = "task-${submittedLyrics.size}"
+        val hit = sunoBanned.firstOrNull { "${field("prompt")} ${field("style")}".contains(it, ignoreCase = true) }
+        val reason = hit?.let { "Your lyrics contain producer tag $it - we don't reference specific artists on Our, please change your lyrics and try again." }
+        if (reason != null && rejectAtSubmit) return json("""{"code":400,"msg":${quote(reason)},"data":null}""")
+        if (reason != null) rejectedTasks[taskId] = reason
+        return json("""{"code":$generateCode,"msg":"${if (generateCode == 200) "success" else "nope"}","data":{"taskId":"$taskId"}}""")
     }
 
     private fun recordInfo(status: String): String {

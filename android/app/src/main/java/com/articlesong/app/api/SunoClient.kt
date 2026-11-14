@@ -19,10 +19,22 @@ import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
 
-/** A SunoAPI error with a human-readable hint (codes from the SunoAPI docs, same as the add-on). */
-class SunoApiException(val code: Int, message: String) : Exception(message)
+/**
+ * A SunoAPI error with a human-readable hint (codes from the SunoAPI docs, same as the add-on).
+ * [apiMessage] is SunoAPI's own `msg`, which the hint replaces in [message].
+ */
+class SunoApiException(val code: Int, message: String, val apiMessage: String? = null) : Exception(message)
 
-class SunoGenerationFailed(message: String) : Exception(message)
+open class SunoGenerationFailed(message: String) : Exception(message)
+
+/**
+ * Suno's content filter turned the song down ("Your lyrics contain producer tag ninetythree ...").
+ * Unlike other failures this is fixable: rewrite the lyrics without what it flagged ([SunoFilter]).
+ */
+class SunoRejected(val reason: String) : SunoGenerationFailed("Suno rejected the lyrics: $reason") {
+    /** The words Suno named, lowercase; empty when it named none. */
+    val words: List<String> = SunoFilter.flaggedWords(reason)
+}
 
 data class SunoTrack(
     val id: String?,
@@ -59,7 +71,11 @@ class SunoClient(
     private val baseUrl: () -> HttpUrl = { DEFAULT_BASE_URL.toHttpUrl() },
     private val apiKey: suspend () -> String,
 ) {
-    /** Starts a custom-mode generation (our lyrics + style tags). Returns the task id. */
+    /**
+     * Starts a custom-mode generation (our lyrics + style tags). Returns the task id. Throws
+     * [SunoRejected] when Suno's filter refuses the lyrics right away (it can also refuse them
+     * later, as a failed task in [recordInfo]).
+     */
     suspend fun generate(model: String, lyrics: String, style: String, title: String): String {
         val body = buildJsonObject {
             put("callBackUrl", CALLBACK_URL)
@@ -70,8 +86,14 @@ class SunoClient(
             put("style", style.take(MAX_STYLE))
             put("title", title.take(MAX_TITLE))
         }
-        return post("api/v1/generate", body).string("taskId")
-            ?: throw SunoApiException(0, "SunoAPI returned no task id")
+        val data = try {
+            post("api/v1/generate", body)
+        } catch (e: SunoApiException) {
+            val reason = e.apiMessage
+            if (reason != null && SunoFilter.isRejection(null, reason)) throw SunoRejected(reason)
+            throw e
+        }
+        return data.string("taskId") ?: throw SunoApiException(0, "SunoAPI returned no task id")
     }
 
     suspend fun recordInfo(taskId: String): SunoTask {
@@ -128,7 +150,7 @@ class SunoClient(
         val code = (envelope["code"] as? JsonPrimitive)?.intOrNull ?: 0
         if (code != 200) {
             val msg = (envelope["msg"] as? JsonPrimitive)?.content
-            throw SunoApiException(code, "SunoAPI error $code: ${hint(code) ?: msg ?: "unknown error"}")
+            throw SunoApiException(code, "SunoAPI error $code: ${hint(code) ?: msg ?: "unknown error"}", msg)
         }
         return envelope
     }

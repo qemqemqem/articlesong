@@ -52,6 +52,15 @@ class SunoClientTest {
     }
 
     @Test
+    fun aContentRejectionAtSubmitIsASunoRejection() {
+        fake.sunoBanned = listOf("ninetythree")
+        fake.rejectAtSubmit = true
+        val error = assertThrows(SunoRejected::class.java) { runBlocking { client.generate("V6", "ninetythree bees", "pop", "t") } }
+        assertThat(error.reason).contains("producer tag ninetythree")
+        assertThat(error.words).containsExactly("ninetythree")
+    }
+
+    @Test
     fun httpErrorsAreReported() {
         val server = MockWebServer().apply {
             enqueue(FakeApis.json("""{"msg":"bad key"}""", code = 401))

@@ -21,6 +21,9 @@ data class SongRecipe(
     val defaultStyleDescription: String,
     val lyricsSystemPrompt: String,
     val lyricsPromptTemplate: String,
+    val lyricsRewritePromptTemplate: String,
+    val rewriteForbiddenWordsTemplate: String,
+    val rewriteNoWordNamed: String,
     val styleSystemPrompt: String,
     val styleTagsPromptTemplate: String,
     val styleTagNotes: Map<String, String>,
@@ -34,6 +37,14 @@ data class SongRecipe(
         lyricsPromptTemplate,
         "STYLE_DESCRIPTION" to style.description.ifEmpty { defaultStyleDescription },
         "ARTICLE_TEXT" to articleText,
+    )
+
+    /** prompts.js getLyricsRewritePrompt(): lyrics Suno rejected, its reason, and the words it named. */
+    fun lyricsRewritePrompt(lyrics: String, reason: String, banned: List<String>): String = render(
+        lyricsRewritePromptTemplate,
+        "REASON" to reason,
+        "FORBIDDEN" to if (banned.isEmpty()) rewriteNoWordNamed else render(rewriteForbiddenWordsTemplate, "WORDS" to banned.joinToString(", ")),
+        "LYRICS" to lyrics,
     )
 
     /** prompts.js getStyleTagsPrompt() */

@@ -634,7 +634,8 @@ function parseSunoRejection(message) {
   const words = new Set();
   const text = String(message || '');
   const add = w => { const clean = w.trim().toLowerCase(); if (clean.length >= 2) words.add(clean); };
-  let m = text.match(/producer tag\s+["'\u201c\u2018]?([^\s"'\u201d\u2019,.;:()]+)/i);
+  // "producer tag ninetythree" (lyrics), "artist name skank" (style tags)
+  let m = text.match(/(?:producer tag|artist name)\s+["'\u201c\u2018]?([^\s"'\u201d\u2019,.;:()]+)/i);
   if (m) add(m[1]);
   const quoted = /(?:contains?|word|term|name|tag|artist)s?\s*[:\-]?\s*["'\u201c\u2018]([^"'\u201d\u2019]{2,40})["'\u201d\u2019]/gi;
   while ((m = quoted.exec(text)) !== null) add(m[1]);
@@ -652,31 +653,13 @@ function scrubWords(text, words) {
   return out.replace(/[ \t]{2,}/g, ' ').replace(/ +([,.!?;:])/g, '$1').replace(/^[ \t]+|[ \t]+$/gm, '');
 }
 
-function buildRewritePrompt(lyrics, reason, banned) {
-  const forbidden = banned.length
-    ? `Forbidden words (do not use them in any spelling, spacing, hyphenation or form, and not inside other words): ${banned.join(', ')}`
-    : 'No specific word was named, so avoid names of real artists, bands, producers, brands and anything else that could be flagged.';
-  return `<task>
-The lyrics below were rejected by the music generator.
-Reason given: "${reason}"
-
-${forbidden}
-
-Rewrite the lyrics so they no longer contain the forbidden words or reference specific artists, bands, producers or brands. Keep the same story, structure, section tags and approximate length. Do not use the forbidden words anywhere. Output only the corrected lyrics.
-</task>
-
-<lyrics>
-${lyrics}
-</lyrics>`;
-}
-
 async function rewriteRejectedLyrics(request, banned, reason, abortController) {
   let lyrics = request.lyrics;
   if (request.songStyle.id !== 'straight' && ANTHROPIC_API_KEY) {
     lyrics = await ClaudeClient.complete({
       apiKey: ANTHROPIC_API_KEY,
       system: LYRICS_SYSTEM_PROMPT,
-      prompt: buildRewritePrompt(request.lyrics, reason, banned),
+      prompt: getLyricsRewritePrompt(request.lyrics, reason, banned),
       maxTokens: 16000,
       thinkingBudget: 4096,
       signal: abortController.signal

@@ -22,6 +22,7 @@ function loadPrompts() {
   return {
     recipe: get('SONG_RECIPE'),
     getLyricsPrompt: get('getLyricsPrompt'),
+    getLyricsRewritePrompt: get('getLyricsRewritePrompt'),
     getStyleTagsPrompt: get('getStyleTagsPrompt'),
     buildSunoLyricsPrompt: get('buildSunoLyricsPrompt'),
     getFallbackStyleTags: get('getFallbackStyleTags')
@@ -40,6 +41,12 @@ const CUSTOM_STYLES = [
   { id: 'lullaby', name: 'Lullaby', description: 'A soft lullaby with gentle repetition' }
 ];
 const LYRICS = '[Verse]\nThe hive is humming $& with {{LYRICS}} news\n\n[Chorus]\nDance, dance 🐝';
+// Suno rejections: a named word, none named (with replacement tokens in the reason), several words
+const REJECTIONS = [
+  { reason: "Your lyrics contain producer tag ninetythree - we don't reference specific artists on Our, please change your lyrics and try again.", banned: ['ninetythree'] },
+  { reason: 'Your lyrics contain copyrighted material. $& {{REASON}}', banned: [] },
+  { reason: 'SENSITIVE_WORD_ERROR', banned: ['ninetythree', 'taylor swift', '$1'] }
+];
 
 function goldenCases(p) {
   const styles = [...p.recipe.defaultStyles, ...CUSTOM_STYLES];
@@ -59,7 +66,8 @@ function goldenCases(p) {
       fallbackStyleTags: p.getFallbackStyleTags(style)
     });
   }
-  return { articles: ARTICLES, lyrics: LYRICS, cases };
+  const rewrites = REJECTIONS.map(r => ({ ...r, prompt: p.getLyricsRewritePrompt(LYRICS, r.reason, r.banned) }));
+  return { articles: ARTICLES, lyrics: LYRICS, cases, rewrites };
 }
 
 function writeJson(file, value) {

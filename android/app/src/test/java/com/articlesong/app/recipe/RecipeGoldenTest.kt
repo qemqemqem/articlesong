@@ -59,6 +59,16 @@ class RecipeGoldenTest {
     }
 
     @Test
+    fun lyricRewritePromptsMatchTheAddOn() {
+        val rewrites = goldens["rewrites"]!!.jsonArray.map { it.jsonObject }
+        assertThat(rewrites).isNotEmpty()
+        for (case in rewrites) {
+            val banned = case["banned"]!!.jsonArray.map { it.jsonPrimitive.content }
+            assertThat(recipe.lyricsRewritePrompt(lyrics, case.text("reason")!!, banned)).isEqualTo(case.text("prompt"))
+        }
+    }
+
+    @Test
     fun fallbackStyleTagsMatchTheAddOn() {
         for (case in cases.filter { it.text("fallbackStyleTags") != null }) {
             assertThat(recipe.fallbackStyleTags(case.style())).isEqualTo(case.text("fallbackStyleTags"))

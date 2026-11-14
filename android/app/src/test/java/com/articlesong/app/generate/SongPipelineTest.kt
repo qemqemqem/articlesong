@@ -36,6 +36,10 @@ class SongPipelineTest {
     private val store = FakeStore()
     private val events = mutableListOf<String>()
     private val writerCalls = mutableListOf<Triple<String, String, Effort>>()
+    private var lyricsReply = "[Verse]\nThe bees are dancing"
+    /** Claude's answer to the n-th (1-based) request to rewrite lyrics Suno rejected. */
+    private var rewriteReply: (Int) -> String = { "[Verse]\nThe bees are humming" }
+    private val rewritePrompts get() = writerCalls.map { it.second }.filter { "rejected by the music generator" in it }
     private var anthropicKey = "sk-ant-test"
     private var saveToMusic = true
     private var extractedUrls = mutableListOf<String>()
@@ -73,7 +77,11 @@ class SongPipelineTest {
         lyricsWriter = { config ->
             if (config.anthropicApiKey.isBlank()) null else LyricsWriter { system, prompt, _, effort ->
                 writerCalls += Triple(system, prompt, effort)
-                if (system == recipe.styleSystemPrompt) "Sunlit Indie Folk, Warm, 96 BPM" else "[Verse]\nThe bees are dancing"
+                when {
+                    system == recipe.styleSystemPrompt -> "Sunlit Indie Folk, Warm, 96 BPM"
+                    "rejected by the music generator" in prompt -> rewriteReply(rewritePrompts.size)
+                    else -> lyricsReply
+                }
             }
         },
         listener = object : PipelineListener {
@@ -177,16 +185,107 @@ class SongPipelineTest {
 
     @Test
     fun sunoFailureFailsTheSongAndForgetsTheTask() = runBlocking {
-        fake.sunoStatuses = listOf("PENDING", "SENSITIVE_WORD_ERROR")
-        fake.sunoErrorMessage = "Lyrics contain prohibited words"
+        fake.sunoStatuses = listOf("PENDING", "GENERATE_AUDIO_FAILED")
+        fake.sunoErrorMessage = "audio generation failed"
         newSong()
         pipeline().run("song-1")
         val song = store.songs.getValue("song-1")
         assertThat(song.status).isEqualTo(SongStatus.FAILED)
-        assertThat(song.error).contains("Lyrics contain prohibited words")
+        assertThat(song.error).contains("audio generation failed")
         assertThat(song.sunoTaskId).isNull() // a retry submits a fresh task
         assertThat(song.lyrics).isNotNull() // ...but keeps the lyrics
+        assertThat(fake.submittedLyrics).hasSize(1) // not a content rejection, so no rewrite
+        assertThat(rewritePrompts).isEmpty()
         assertThat(events.single()).startsWith("failed:")
+    }
+
+    @Test
+    fun rejectedLyricsAreRewrittenWithoutTheFlaggedWordAndResubmitted() = runBlocking {
+        lyricsReply = "[Verse]\nIn ninetythree the busy bees"
+        fake.sunoBanned = listOf("ninetythree")
+        newSong()
+        val statuses = mutableListOf<SongStatus>()
+        pipeline { statuses += it.status }.run("song-1")
+
+        val song = store.songs.getValue("song-1")
+        assertThat(song.status).isEqualTo(SongStatus.READY)
+        assertThat(fake.submittedLyrics).containsExactly("[Verse]\nIn ninetythree the busy bees", "[Verse]\nThe bees are humming").inOrder()
+        assertThat(song.lyrics).isEqualTo("[Verse]\nThe bees are humming")
+        assertThat(song.sunoTaskId).isEqualTo("task-2")
+        // Claude got the add-on's rewrite prompt: Suno's reason, the word, the rejected lyrics.
+        val reason = "Your lyrics contain producer tag ninetythree - we don't reference specific artists on Our, please change your lyrics and try again."
+        val rewrite = writerCalls.single { "rejected by the music generator" in it.second }
+        assertThat(rewrite.first).isEqualTo(recipe.lyricsSystemPrompt)
+        assertThat(rewrite.second).isEqualTo(recipe.lyricsRewritePrompt("[Verse]\nIn ninetythree the busy bees", reason, listOf("ninetythree")))
+        // The progress stepper goes back to lyrics while they're rewritten.
+        assertThat(statuses).containsAtLeast(SongStatus.COMPOSING, SongStatus.WRITING_LYRICS, SongStatus.COMPOSING, SongStatus.READY).inOrder()
+        assertThat(events).containsExactly("playable:STREAMING", "export", "ready").inOrder()
+    }
+
+    @Test
+    fun aRejectionAtSubmitIsRewrittenToo() = runBlocking {
+        lyricsReply = "[Verse]\nninetythree"
+        fake.sunoBanned = listOf("ninetythree")
+        fake.rejectAtSubmit = true
+        newSong()
+        pipeline().run("song-1")
+        assertThat(store.songs.getValue("song-1").status).isEqualTo(SongStatus.READY)
+        assertThat(fake.submittedLyrics).hasSize(2)
+        assertThat(rewritePrompts).hasSize(1)
+    }
+
+    @Test
+    fun theFlaggedWordIsScrubbedEvenIfClaudeRepeatsIt() = runBlocking {
+        lyricsReply = "[Verse]\nninetythree bees"
+        rewriteReply = { "[Verse]\nStill singing about Ninety-Three bees" }
+        fake.sunoBanned = listOf("ninetythree")
+        newSong()
+        pipeline().run("song-1")
+        val song = store.songs.getValue("song-1")
+        assertThat(song.status).isEqualTo(SongStatus.READY)
+        assertThat(fake.submittedLyrics.last().lowercase()).doesNotContain("ninety")
+        assertThat(song.lyrics!!.lowercase()).doesNotContain("ninety")
+    }
+
+    @Test
+    fun aSongThatKeepsGettingRejectedGivesUpAfterThreeTries() = runBlocking {
+        lyricsReply = "[Verse]\nninetythree"
+        rewriteReply = { n -> listOf("[Verse]\nalphaword", "[Verse]\nbetaword", "[Verse]\ngammaword")[n - 1] }
+        fake.sunoBanned = listOf("ninetythree", "alphaword", "betaword", "gammaword")
+        newSong()
+        pipeline().run("song-1")
+        val song = store.songs.getValue("song-1")
+        assertThat(song.status).isEqualTo(SongStatus.FAILED)
+        assertThat(fake.submittedLyrics).hasSize(SongPipeline.MAX_LYRIC_REWRITES + 1)
+        assertThat(song.error).contains("Suno rejected the lyrics 3 times")
+        assertThat(song.error).contains("producer tag betaword")
+        assertThat(song.sunoTaskId).isNull() // Retry starts over with a fresh task
+        // Every word Suno flagged stays forbidden in later rewrites.
+        assertThat(rewritePrompts[1]).contains("ninetythree, alphaword")
+    }
+
+    @Test
+    fun withoutClaudeAFlaggedWordIsStillScrubbed() = runBlocking {
+        anthropicKey = ""
+        fake.lyrics = "[Verse]\nThe ninetythree bees"
+        fake.sunoBanned = listOf("ninetythree")
+        newSong()
+        pipeline().run("song-1")
+        assertThat(store.songs.getValue("song-1").status).isEqualTo(SongStatus.READY)
+        assertThat(fake.submittedLyrics.last()).isEqualTo("[Verse]\nThe bees")
+    }
+
+    @Test
+    fun withoutClaudeAnUnnamedRejectionFailsAtOnce() = runBlocking {
+        anthropicKey = ""
+        fake.sunoStatuses = listOf("SENSITIVE_WORD_ERROR")
+        fake.sunoErrorMessage = "Your lyrics contain copyrighted material. Please change it and try again."
+        newSong()
+        pipeline().run("song-1")
+        val song = store.songs.getValue("song-1")
+        assertThat(song.status).isEqualTo(SongStatus.FAILED)
+        assertThat(song.error).contains("copyrighted material")
+        assertThat(fake.submittedLyrics).hasSize(1)
     }
 
     @Test

@@ -34,10 +34,23 @@ check('custom styles fall back to their description',
 
 check('straight style still returns null lyrics prompt', prompts.getLyricsPrompt(article, 'straight') === null);
 
+// Suno's content filter: warn up front (each rejection still costs credits), then rewrite on rejection
+check('lyrics prompt says to write "ninety-three" as digits',
+  /"ninety-three"/.test(prompts.getLyricsPrompt(article, meme)) && /\b93\b/.test(prompts.getLyricsPrompt(article, meme)));
+check('style tags prompt warns that Suno reads "skank" as an artist name', prompts.getStyleTagsPrompt('la', meme).includes('"skank"'));
+const rewrite = prompts.getLyricsRewritePrompt('[Verse]\nninety-three bees $& {{LYRICS}}', 'Your lyrics contain producer tag ninetythree', ['ninetythree', 'taylor swift']);
+check('rewrite prompt gives Suno\'s reason', rewrite.includes('Reason given: "Your lyrics contain producer tag ninetythree"'), rewrite);
+check('rewrite prompt forbids every flagged word', /do not use/i.test(rewrite) && rewrite.includes('ninetythree, taylor swift'), rewrite);
+check('rewrite prompt carries the lyrics to fix, literally', rewrite.includes('ninety-three bees $& {{LYRICS}}'), rewrite);
+check('rewrite prompt explains what the filter flags', /spelled out/.test(rewrite) && /\b93\b/.test(rewrite), rewrite);
+check('rewrite prompt with no named word asks to avoid names in general',
+  /No specific word was named/.test(prompts.getLyricsRewritePrompt('la', 'Your lyrics contain copyrighted material.', [])));
+
 // Every placeholder used in a template is one the renderers supply
-const KNOWN = new Set(['STYLE_DESCRIPTION', 'ARTICLE_TEXT', 'LYRICS', 'STYLE_NAME', 'STYLE_NOTE', 'ARTICLE_EXCERPT']);
+const KNOWN = new Set(['STYLE_DESCRIPTION', 'ARTICLE_TEXT', 'LYRICS', 'STYLE_NAME', 'STYLE_NOTE', 'ARTICLE_EXCERPT', 'REASON', 'FORBIDDEN', 'WORDS']);
 const r = prompts.SONG_RECIPE;
-const used = [r.lyricsPromptTemplate, r.styleTagsPromptTemplate, r.sunoLyricsPromptTemplate, r.customFallbackStyleTagsTemplate]
+const used = [r.lyricsPromptTemplate, r.styleTagsPromptTemplate, r.sunoLyricsPromptTemplate, r.customFallbackStyleTagsTemplate,
+  r.lyricsRewritePromptTemplate, r.rewriteForbiddenWordsTemplate]
   .flatMap(t => [...t.matchAll(/\{\{(\w+)\}\}/g)].map(m => m[1]));
 check('templates only use known placeholders', used.every(u => KNOWN.has(u)), used.filter(u => !KNOWN.has(u)));
 
@@ -49,6 +62,9 @@ const exported = JSON.parse(fs.readFileSync(path.join(dir, 'r.json'), 'utf8'));
 check('exported recipe matches SONG_RECIPE', JSON.stringify(exported) === JSON.stringify(r));
 const goldens = JSON.parse(fs.readFileSync(path.join(dir, 'g.json'), 'utf8'));
 check('goldens cover every default style', r.defaultStyles.every(s => goldens.cases.some(c => c.style.id === s.id)));
+check('goldens cover lyric rewrites, with and without named words',
+  goldens.rewrites.some(c => c.banned.length === 0) && goldens.rewrites.some(c => c.banned.length > 1) &&
+  goldens.rewrites.every(c => c.prompt === prompts.getLyricsRewritePrompt(goldens.lyrics, c.reason, c.banned)));
 check('goldens are deterministic', JSON.stringify(goldens) === JSON.stringify(goldenCases(loadPrompts())));
 fs.rmSync(dir, { recursive: true });
 

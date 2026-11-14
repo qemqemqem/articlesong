@@ -7,7 +7,9 @@ import com.articlesong.app.api.Effort
 import com.articlesong.app.api.LyricsWriter
 import com.articlesong.app.api.SunoApiException
 import com.articlesong.app.api.SunoClient
+import com.articlesong.app.api.SunoFilter
 import com.articlesong.app.api.SunoGenerationFailed
+import com.articlesong.app.api.SunoRejected
 import com.articlesong.app.data.AppSettings
 import com.articlesong.app.data.SongEntity
 import com.articlesong.app.data.SongMissingException
@@ -84,8 +86,7 @@ class SongPipeline(
             var song = readArticle(start)
             song = writeLyrics(song, writer)
             song = writeStyleTags(song, writer)
-            song = submitToSuno(song, config)
-            song = awaitAudio(song)
+            song = compose(song, config, writer)
             song = download(song)
             finish(song, config)
         } catch (e: CancellationException) {
@@ -153,6 +154,45 @@ class SongPipeline(
         return advance(song.id) { it.copy(styleTags = tags) }
     }
 
+    /**
+     * Submit to Suno and wait for the audio. When Suno's content filter rejects the lyrics, rewrite
+     * them without what it flagged and submit again, a bounded number of times (the add-on's loop
+     * in generateSongFromArticle()). Every word it flags stays forbidden for the later rewrites.
+     */
+    private suspend fun compose(start: SongEntity, config: AppSettings, writer: LyricsWriter?): SongEntity {
+        var song = start
+        val banned = mutableListOf<String>()
+        var attempt = 0
+        while (true) {
+            try {
+                song = submitToSuno(song, config)
+                return awaitAudio(song)
+            } catch (rejection: SunoRejected) {
+                rejection.words.forEach { if (it !in banned) banned += it }
+                // Without Claude the only fix is deleting the words Suno named.
+                if (attempt >= MAX_LYRIC_REWRITES || (writer == null && banned.isEmpty())) {
+                    val tries = if (attempt == 0) "once" else "${attempt + 1} times"
+                    throw SunoGenerationFailed("Suno rejected the lyrics $tries; giving up. Last reason: ${rejection.reason}")
+                }
+                attempt++
+                Log.w(TAG, "Suno rejected the lyrics of ${song.id}; rewrite $attempt without ${banned.ifEmpty { listOf("(unnamed)") }}: ${rejection.reason}")
+                song = rewriteLyrics(song.id, writer, banned, rejection.reason)
+            }
+        }
+    }
+
+    private suspend fun rewriteLyrics(id: String, writer: LyricsWriter?, banned: List<String>, reason: String): SongEntity {
+        // The rejected task is dead: forget it so the rewrite gets submitted as a new one.
+        val song = advance(id) { it.copy(status = SongStatus.WRITING_LYRICS, sunoTaskId = null, streamUrl = null) }
+        val rejected = song.lyrics!!
+        val rewritten = writer?.complete(recipe.lyricsSystemPrompt, recipe.lyricsRewritePrompt(rejected, reason, banned), LYRICS_MAX_TOKENS, Effort.MEDIUM)
+            ?: rejected
+        // Scrub as well, in case Claude repeats a word (or there's no Claude to ask).
+        return advance(id) {
+            it.copy(lyrics = SunoFilter.scrub(rewritten, banned), styleTags = it.styleTags?.let { tags -> SunoFilter.scrub(tags, banned) })
+        }
+    }
+
     private suspend fun submitToSuno(song: SongEntity, config: AppSettings): SongEntity {
         if (song.sunoTaskId != null) return song
         advance(song.id) { it.copy(status = SongStatus.COMPOSING) }
@@ -177,7 +217,9 @@ class SongPipeline(
             if (task.isFailed) {
                 // Suno gave up on this task: forget it so a retry submits a fresh one.
                 advance(song.id) { it.copy(sunoTaskId = null, streamUrl = null) }
-                throw SunoGenerationFailed("Suno couldn't make this song: ${task.errorMessage ?: task.status}")
+                val reason = task.errorMessage ?: task.status
+                if (SunoFilter.isRejection(task.status, reason)) throw SunoRejected(reason)
+                throw SunoGenerationFailed("Suno couldn't make this song: $reason")
             }
             val track = task.tracks.firstOrNull()
             if (task.isComplete) {
@@ -272,6 +314,8 @@ class SongPipeline(
         const val LYRICS_MAX_TOKENS = 16_000L
         const val STYLE_MAX_TOKENS = 8_000L
         const val STYLE_TAGS_MAX_CHARS = 120
+        /** Rewrites after Suno's filter rejects the lyrics, after the first try (same as the add-on). */
+        const val MAX_LYRIC_REWRITES = 2
 
         /** Same 120-char budget as the add-on, but cut after the last whole tag instead of mid-word. */
         fun trimStyleTags(tags: String): String {

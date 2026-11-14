@@ -23,6 +23,7 @@ const has = (text, w) => new RegExp(w.split('').join('[\\s\\-]*'), 'i').test(tex
     check('second attempt is clean', !has(env.generatedLyrics[1], 'ninetythree'), env.generatedLyrics[1]);
     check('Claude got the explicit instruction naming the word', env.rewritePrompts.length === 1 && /ninetythree/.test(env.rewritePrompts[0]) && /do not use/i.test(env.rewritePrompts[0]), env.rewritePrompts[0]);
     check('rewrite prompt includes Suno\'s reason and the lyrics to fix', /producer tag/.test(env.rewritePrompts[0]) && /busy bees/.test(env.rewritePrompts[0]));
+    check('rewrite prompt is the shared one from prompts.js', env.rewritePrompts[0] === vm.runInContext(`getLyricsRewritePrompt(${JSON.stringify('Verse: ninetythree busy bees\nChorus: la la')}, ${JSON.stringify("Your lyrics contain producer tag ninetythree - we don't reference specific artists on Our, please change your lyrics and try again.")}, ["ninetythree"])`, env.ctx), env.rewritePrompts[0]);
     check('request records the rewrite', req.rewrites === 1 && /ninetythree/.test(req.rewriteNote || ''), JSON.stringify([req.rewrites, req.rewriteNote]));
     check('stored lyrics are the corrected ones', !has(req.lyrics, 'ninetythree'));
   }
@@ -73,6 +74,7 @@ const has = (text, w) => new RegExp(w.split('').join('[\\s\\-]*'), 'i').test(tex
     const eq = (a, b) => JSON.stringify(a) === JSON.stringify(b);
     check('parses "producer tag X"', eq(parse("Your lyrics contain producer tag ninetythree - we don't reference specific artists on Our, please change your lyrics and try again."), ['ninetythree']));
     check('parses quoted words', eq(parse('Your lyrics contain the word "Taylor Swift", which is not allowed'), ['taylor swift']));
+    check('parses "artist name X" (Suno rejecting style tags)', eq(parse('Your tags contain artist name skank'), ['skank']));
     check('no words for a vague message', eq(parse('SENSITIVE_WORD_ERROR'), []));
     check('scrub handles spacing/hyphen variants', vm.runInContext(`scrubWords("Ninety-Three bees and ninety three more, NINETYTHREE!", ["ninetythree"])`, env.ctx).toLowerCase().indexOf('ninety') === -1);
   }

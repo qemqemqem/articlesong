@@ -252,6 +252,7 @@ TECHNICAL REQUIREMENTS (always apply):
 - Use as much of the article content as possible
 - Ignore headers, footers, and boilerplate text
 - Do NOT mention artist names, celebrities, or trademarks
+- Suno's content filter rejects lyrics with anything it takes for an artist or producer name. It reads "ninety-three" spelled out as a producer's name, so write numbers like that as digits (93, 1993). It also rejects "nigra", as in "substantia nigra": say "the midbrain" instead
 
 SYNTACTIC GUIDANCE (default, unless style overrides):
 - Each line should express a complete thought OR be part of a multi-line sentence using enjambment
@@ -355,6 +356,43 @@ function getLyricsPrompt(articleText, songStyle) {
 }
 
 // ============================================================================
+// LYRICS REWRITE - after Suno's content filter rejects the lyrics
+// ============================================================================
+
+// Suno names what it flagged when it can ("Your lyrics contain producer tag ninetythree");
+// the caller passes those words as `banned`. Uses LYRICS_SYSTEM_PROMPT as the system prompt.
+const LYRICS_REWRITE_PROMPT_TEMPLATE = `<task>
+The lyrics below were rejected by the music generator's content filter.
+Reason given: "{{REASON}}"
+
+{{FORBIDDEN}}
+
+The filter flags anything it takes for the name of an artist, band, producer or brand (including some numbers spelled out: it reads "ninety-three" as a producer's name, so write 93), quoted copyrighted text, and words it considers inappropriate, even when the article uses them. Rewrite the lyrics so they say the same things in words it won't flag: rephrase, generalize, or leave those details out. Keep the same story, structure, section tags and approximate length. Output only the corrected lyrics.
+</task>
+
+<lyrics>
+{{LYRICS}}
+</lyrics>`;
+const REWRITE_FORBIDDEN_WORDS_TEMPLATE = 'Forbidden words (do not use them in any spelling, spacing, hyphenation or form, and not inside other words): {{WORDS}}';
+const REWRITE_NO_WORD_NAMED = 'No specific word was named, so avoid names of real artists, bands, producers and brands, quotations, and anything else that could be flagged.';
+
+/**
+ * Prompt to rewrite lyrics that Suno rejected
+ * @param {string} lyrics - The rejected lyrics
+ * @param {string} reason - Suno's message
+ * @param {string[]} banned - Words Suno named, lowercase (may be empty)
+ */
+function getLyricsRewritePrompt(lyrics, reason, banned) {
+  return renderTemplate(LYRICS_REWRITE_PROMPT_TEMPLATE, {
+    REASON: reason,
+    FORBIDDEN: banned.length
+      ? renderTemplate(REWRITE_FORBIDDEN_WORDS_TEMPLATE, { WORDS: banned.join(', ') })
+      : REWRITE_NO_WORD_NAMED,
+    LYRICS: lyrics
+  });
+}
+
+// ============================================================================
 // STYLE TAG GENERATION - System Prompt & Functions
 // ============================================================================
 
@@ -416,6 +454,7 @@ Apply your knowledge of genre taxonomy, production aesthetics, and psychoacousti
 - Include: genre (be specific, use subgenres), mood/affect, tempo/energy, instrumentation/timbre
 - Do NOT mention living artist names or celebrities
 - Focus on musical qualities, not artist references
+- Suno rejects style tags with anything it takes for an artist's name, including "skank" (describe the ska rhythm another way, e.g. "offbeat guitar upstrokes")
 
 MAXIMIZE SPECIFICITY within character limit:
 - Use SUBGENRES not broad genres: "Shoegaze" not "Rock", "Drill" not "Hip-Hop"
@@ -515,6 +554,9 @@ const SONG_RECIPE = {
   defaultStyleDescription: DEFAULT_STYLE_DESCRIPTION,
   lyricsSystemPrompt: LYRICS_SYSTEM_PROMPT,
   lyricsPromptTemplate: LYRICS_PROMPT_TEMPLATE,
+  lyricsRewritePromptTemplate: LYRICS_REWRITE_PROMPT_TEMPLATE,
+  rewriteForbiddenWordsTemplate: REWRITE_FORBIDDEN_WORDS_TEMPLATE,
+  rewriteNoWordNamed: REWRITE_NO_WORD_NAMED,
   styleSystemPrompt: STYLE_SYSTEM_PROMPT,
   styleTagsPromptTemplate: STYLE_TAGS_PROMPT_TEMPLATE,
   styleTagNotes: STYLE_TAG_NOTES,
@@ -534,6 +576,7 @@ if (typeof module !== 'undefined' && module.exports) {
     STYLE_SYSTEM_PROMPT,
     SYSTEM_PROMPT, // Legacy export (same as LYRICS_SYSTEM_PROMPT)
     getLyricsPrompt,
+    getLyricsRewritePrompt,
     getStyleTagsPrompt,
     buildSunoLyricsPrompt,
     getFallbackStyleTags,
